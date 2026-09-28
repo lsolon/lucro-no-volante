@@ -148,13 +148,46 @@ export function parseTimeToMinutes(timeStr?: string): number {
 }
 
 /**
- * Formata minutos em formato legível (ex: "6h 30m" ou "45m").
+ * Converte minutos para o formato estrito HH:MM (ex: 390 -> "06:30").
+ */
+export function formatMinutesToHHMM(minutes?: number): string {
+  if (minutes === undefined || minutes === null || isNaN(minutes) || minutes <= 0) return '';
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Normaliza qualquer representação de tempo para o formato HH:MM (ex: "6:30" -> "06:30", "6" -> "06:00").
+ */
+export function formatTimeToHHMM(timeStr?: string): string {
+  if (!timeStr) return '';
+  const trimmed = timeStr.trim();
+  if (!trimmed) return '';
+  if (/^\d{2}:\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const mins = parseTimeToMinutes(trimmed);
+  if (mins > 0) {
+    return formatMinutesToHHMM(mins);
+  }
+  return trimmed;
+}
+
+/**
+ * Aplica máscara de digitação para HH:MM conforme o usuário digita.
+ */
+export function maskTimeInput(val: string): string {
+  const digits = val.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
+/**
+ * Formata minutos em formato estrito HH:MM (ex: "06:30").
  */
 export function formatMinutesToDisplay(minutes?: number): string {
-  if (!minutes || minutes <= 0) return '';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
+  return formatMinutesToHHMM(minutes);
 }

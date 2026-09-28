@@ -33,7 +33,7 @@ import { format, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { cn, compressImage, parseEntryDate, parseTimeToMinutes, formatMinutesToDisplay } from '../lib/utils';
+import { cn, compressImage, parseEntryDate, parseTimeToMinutes, formatMinutesToDisplay, formatTimeToHHMM, maskTimeInput } from '../lib/utils';
 import { Entry, EntryType, Category, FixedCost, PlatformEarningDetail } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { GAS_STATIONS } from '../constants';
@@ -563,6 +563,20 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     }));
   };
 
+  const handleTimeChange = (catId: string, value: string) => {
+    const masked = maskTimeInput(value);
+    handlePlatformDetailChange(catId, 'tempoTrabalho', masked);
+  };
+
+  const handleTimeBlur = (catId: string) => {
+    const currentVal = ganhosDetalhes[catId]?.tempoTrabalho;
+    if (!currentVal) return;
+    const formatted = formatTimeToHHMM(currentVal);
+    if (formatted) {
+      handlePlatformDetailChange(catId, 'tempoTrabalho', formatted);
+    }
+  };
+
   const togglePlatformDetails = (catId: string) => {
     setExpandedPlatformDetails(prev => ({
       ...prev,
@@ -678,9 +692,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
 
         const hasAny = (!isNaN(corridasNum) && corridasNum > 0) || (mins > 0) || (!isNaN(kmPlat) && kmPlat > 0);
         if (hasAny) {
+          const formattedTempo = tempoStr ? (formatTimeToHHMM(tempoStr) || tempoStr) : undefined;
           numericGanhosDetalhes[cat.id] = {
             corridas: !isNaN(corridasNum) && corridasNum > 0 ? corridasNum : undefined,
-            tempoTrabalho: tempoStr || undefined,
+            tempoTrabalho: formattedTempo,
             tempoMinutos: mins > 0 ? mins : undefined,
             kmRodado: !isNaN(kmPlat) && kmPlat > 0 ? kmPlat : undefined
           };
@@ -966,7 +981,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                   {!isExpanded && hasDetails && (
                     <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                       {det.corridas && <span>🚗 {det.corridas} corr</span>}
-                      {det.tempoTrabalho && <span>⏱️ {det.tempoTrabalho}</span>}
+                      {det.tempoTrabalho && <span>⏱️ {formatTimeToHHMM(det.tempoTrabalho) || det.tempoTrabalho}</span>}
                       {det.kmRodado && <span>🛣️ {det.kmRodado} km</span>}
                     </div>
                   )}
@@ -976,7 +991,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                 {isExpanded && (
                   <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                         <Timer size={13} className="text-blue-500" /> Detalhes de Produção: {cat.nome}
                       </span>
                     </div>
@@ -1005,11 +1020,14 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                         </label>
                         <input
                           type="text"
-                          placeholder="Ex: 06:30 ou 6h 30m"
+                          placeholder="Ex: 06:30"
+                          maxLength={5}
                           value={det.tempoTrabalho}
-                          onChange={(e) => handlePlatformDetailChange(cat.id, 'tempoTrabalho', e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          onChange={(e) => handleTimeChange(cat.id, e.target.value)}
+                          onBlur={() => handleTimeBlur(cat.id)}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold font-mono text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                         />
+                        <p className="text-[9px] text-slate-400 font-medium">Manter formato HH:MM (ex: 06:30)</p>
                       </div>
 
                       {/* Km Rodados */}

@@ -35,7 +35,7 @@ import {
   Timer,
   Hash
 } from 'lucide-react';
-import { cn, parseEntryDate } from '../lib/utils';
+import { cn, parseEntryDate, formatTimeToHHMM } from '../lib/utils';
 import { Entry, Category } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { calculateEmptyTankCycle } from '../lib/fuel-calculator';
@@ -500,8 +500,8 @@ export default function EntryList({ entries, categories, earningCategories, refu
                         </span>
                       )}
                       {tempoDisplay && (
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-blue-100 flex items-center gap-1">
-                          <Clock size={11} className="text-blue-500" /> {tempoDisplay}
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-blue-100 flex items-center gap-1 font-mono">
+                          <Clock size={11} className="text-blue-500" /> {formatTimeToHHMM(tempoDisplay) || tempoDisplay}
                         </span>
                       )}
                       {kmSum > 0 && (
@@ -840,22 +840,33 @@ export default function EntryList({ entries, categories, earningCategories, refu
                           </div>
 
                           {(corridas || tempo || km) && (
-                            <div className="pt-2 border-t border-slate-200/60 flex flex-wrap gap-2 text-xs">
-                              {corridas && (
-                                <span className="px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
-                                  <Hash size={12} className="text-emerald-500" /> {corridas} {corridas === 1 ? 'corrida' : 'corridas'}
-                                </span>
-                              )}
-                              {tempo && (
-                                <span className="px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
-                                  <Clock size={12} className="text-blue-500" /> {tempo} trabalhado
-                                </span>
-                              )}
-                              {km && (
-                                <span className="px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
-                                  <Navigation size={12} className="text-indigo-500" /> {km} km rodados
-                                </span>
-                              )}
+                            <div className="p-3 bg-white rounded-xl border border-slate-200/80 space-y-2">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                                <Timer size={12} className="text-blue-500" /> Detalhes de Produção: {cat?.nome || 'Plataforma'}
+                              </span>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
+                                <div className="p-2 bg-slate-50 rounded-lg flex items-center justify-between sm:flex-col sm:items-start gap-0.5">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase">Corridas Realizadas</span>
+                                  <span className="font-black text-slate-800 text-xs flex items-center gap-1">
+                                    <Hash size={11} className="text-emerald-500" /> {corridas !== undefined ? `${corridas} ${corridas === 1 ? 'corrida' : 'corridas'}` : '-'}
+                                  </span>
+                                </div>
+
+                                <div className="p-2 bg-slate-50 rounded-lg flex items-center justify-between sm:flex-col sm:items-start gap-0.5">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase">Tempo Trabalhado</span>
+                                  <span className="font-black font-mono text-slate-800 text-xs flex items-center gap-1">
+                                    <Clock size={11} className="text-blue-500" /> {tempo ? formatTimeToHHMM(tempo) : '-'}
+                                  </span>
+                                </div>
+
+                                <div className="p-2 bg-slate-50 rounded-lg flex items-center justify-between sm:flex-col sm:items-start gap-0.5">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase">Km Rodado (Plataforma)</span>
+                                  <span className="font-black text-slate-800 text-xs flex items-center gap-1">
+                                    <Navigation size={11} className="text-indigo-500" /> {km !== undefined ? `${km} km` : '-'}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           )}
 
