@@ -15,12 +15,15 @@ import {
   Share2,
   Sparkles,
   PlusCircle,
-  X
+  X,
+  History,
+  Zap,
+  Layers
 } from 'lucide-react';
 import { cn, parseEntryDate } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
-import { getAllEmptyTankCycles } from '../lib/fuel-calculator';
+import { getAllEmptyTankCycles, getEmptyTankDualView } from '../lib/fuel-calculator';
 import PWAInstallButton from './PWAInstallButton';
 
 interface DashboardProps {
@@ -49,6 +52,7 @@ interface DashboardProps {
   earningCategories: { id: string; nome: string }[];
   onViewMaintenance: () => void;
   onOpenAIStudio: () => void;
+  onOpenEntryModal?: () => void;
   isAdmin?: boolean;
   uniqueVisitors?: number;
   email?: string;
@@ -65,6 +69,7 @@ export default function Dashboard({
   categories,
   onViewMaintenance,
   onOpenAIStudio,
+  onOpenEntryModal,
   isAdmin,
   uniqueVisitors,
   email,
@@ -214,8 +219,14 @@ export default function Dashboard({
     return { percent };
   }, [currentKm, targetKm]);
 
+  const [emptyTankViewMode, setEmptyTankViewMode] = useState<'recente' | 'completo'>('recente');
+
   const fuelCyclesSummary = useMemo(() => {
     return getAllEmptyTankCycles(entries, categories as any);
+  }, [entries, categories]);
+
+  const emptyTankDual = useMemo(() => {
+    return getEmptyTankDualView(entries, categories as any);
   }, [entries, categories]);
 
   const maintenanceStatus = useMemo(() => {
@@ -315,25 +326,37 @@ export default function Dashboard({
         </div>
       )}
       
-      {/* Share App & Marketing Buttons */}
-      <div className={cn("grid gap-3", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        <button 
+          onClick={() => {
+            const el = document.getElementById('consumo-real-tanque-vazio');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+          className="py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-95 transition-all cursor-pointer border border-amber-300"
+        >
+          <Fuel size={18} className="text-slate-950" />
+          <span>Consumo Real (Tanque Vazio)</span>
+        </button>
+
         <button 
           onClick={handleShare}
-          className="py-4 bg-white text-[#0047AB] rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/20 active:scale-95 transition-all"
+          className="py-3.5 px-4 bg-white text-[#0047AB] rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-black/20 active:scale-95 transition-all cursor-pointer"
         >
-          <Share2 size={18} className="text-blue-600" />
-          Indicar App
+          <Share2 size={16} className="text-blue-600" />
+          <span>Indicar App</span>
         </button>
-        {isAdmin && (
-          <button 
-            onClick={onOpenAIStudio}
-            className="py-4 bg-blue-600 text-white rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-900/40 active:scale-95 transition-all"
-          >
-            <Sparkles size={18} className="text-blue-200" />
-            Criar Propaganda
-          </button>
-        )}
       </div>
+
+      {isAdmin && (
+        <button 
+          onClick={onOpenAIStudio}
+          className="w-full py-3 bg-blue-600 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40 active:scale-95 transition-all cursor-pointer"
+        >
+          <Sparkles size={16} className="text-blue-200" />
+          Criar Propaganda com IA
+        </button>
+      )}
 
 
       {/* Daily Goal Card (Prominent) */}
@@ -435,6 +458,200 @@ export default function Dashboard({
       </div>
 
       <PWAInstallButton />
+
+      {/* Autonomia & Consumo Real (Tanque Vazio) - SEMPRE VISÍVEL NO TOPO */}
+      <div id="consumo-real-tanque-vazio" className="bg-gradient-to-br from-amber-500/20 via-slate-900/60 to-slate-900/80 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-amber-500/40 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-500/25 text-amber-400 rounded-2xl border border-amber-500/40 shadow-sm shadow-amber-500/20">
+              <Fuel size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                Consumo Real (Tanque Vazio)
+              </h3>
+              <p className="text-xs text-amber-200/90 font-medium">Medição real entre um tanque vazio e outro</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/40 uppercase tracking-wider">
+            {emptyTankDual.hasCycles 
+              ? `${emptyTankDual.totalCyclesCompleted} ${emptyTankDual.totalCyclesCompleted === 1 ? 'Ciclo Concluído' : 'Ciclos Concluídos'}`
+              : emptyTankDual.totalEmptyTanks === 1 
+                ? '1º Marco Zero Registrado' 
+                : 'Novo Recurso'}
+          </span>
+        </div>
+
+        {/* SELETOR INTERATIVO EM ABAS (SEMPRE PRESENTE) */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/10">
+          <button
+            type="button"
+            onClick={() => setEmptyTankViewMode('completo')}
+            className={cn(
+              "py-2.5 px-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer",
+              emptyTankViewMode === 'completo'
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 ring-2 ring-amber-400" 
+                : "text-slate-300 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+              <History size={13} className={emptyTankViewMode === 'completo' ? "text-slate-950" : "text-amber-400"} />
+              1. Ciclo Completo (Geral)
+            </span>
+            <span className={cn("text-[9px] font-semibold", emptyTankViewMode === 'completo' ? "text-slate-900" : "text-slate-400")}>
+              Do 1º tanque vazio ao mais recente
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setEmptyTankViewMode('recente')}
+            className={cn(
+              "py-2.5 px-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer",
+              emptyTankViewMode === 'recente'
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 ring-2 ring-amber-400" 
+                : "text-slate-300 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+              <Zap size={13} className={emptyTankViewMode === 'recente' ? "text-slate-950" : "text-amber-400"} />
+              2. Ciclo Mais Recente
+            </span>
+            <span className={cn("text-[9px] font-semibold", emptyTankViewMode === 'recente' ? "text-slate-900" : "text-slate-400")}>
+              Entre os 2 abastecimentos mais recentes
+            </span>
+          </button>
+        </div>
+
+        {/* CONTEÚDO DAS ABAS */}
+        {(() => {
+          const isRecent = emptyTankViewMode === 'recente';
+          const activeCycle = isRecent ? emptyTankDual.recentCycle : emptyTankDual.globalCycle;
+
+          if (emptyTankDual.hasCycles) {
+            return (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap justify-between items-center gap-1.5 text-xs">
+                  <span className="font-black text-amber-300 uppercase tracking-wider text-[11px] flex items-center gap-1">
+                    {!isRecent ? '📊 1. Ciclo Completo Acumulado' : '⚡ 2. Ciclo Mais Recente'} ({activeCycle.combustivel})
+                  </span>
+                  <span className="text-amber-200/90 font-medium text-[11px] bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
+                    {activeCycle.startDate} ➔ {activeCycle.endDate} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
+                  <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
+                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Km Rodados</p>
+                    <p className="text-base sm:text-lg font-black text-white">+{activeCycle.kmRodados} km</p>
+                    <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">{activeCycle.startKm} ➔ {activeCycle.endKm}</p>
+                  </div>
+                  <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
+                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Consumo Real</p>
+                    <p className="text-base sm:text-lg font-black text-amber-400">{activeCycle.mediaConsumo.toFixed(2)} <span className="text-[10px] text-slate-300">km/{activeCycle.unit}</span></p>
+                    <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">medido na bomba</p>
+                  </div>
+                  <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
+                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Custo / Km</p>
+                    <p className="text-base sm:text-lg font-black text-emerald-400">{formatCurrency(activeCycle.custoPorKm)}</p>
+                    <p className="text-[9px] text-emerald-200/80 font-medium mt-0.5">por km percorrido</p>
+                  </div>
+                  <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
+                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Combustível</p>
+                    <p className="text-base sm:text-lg font-black text-white">{activeCycle.combustivelConsumido.toFixed(1)} {activeCycle.unit}</p>
+                    <p className="text-[9px] text-slate-300 font-medium mt-0.5">Gasto: {formatCurrency(activeCycle.valorConsumido)}</p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-200/90 font-medium">
+                  {isRecent ? (
+                    <span>
+                      1. Ciclo Completo Geral: <b className="text-white">+{emptyTankDual.globalCycle.kmRodados} km</b> • Média: <b className="text-amber-300">{emptyTankDual.globalCycle.mediaConsumo.toFixed(2)} km/{emptyTankDual.globalCycle.unit}</b>
+                    </span>
+                  ) : (
+                    <span>
+                      2. Ciclo Mais Recente: <b className="text-white">+{emptyTankDual.recentCycle.kmRodados} km</b> • Média: <b className="text-amber-300">{emptyTankDual.recentCycle.mediaConsumo.toFixed(2)} km/{emptyTankDual.recentCycle.unit}</b>
+                    </span>
+                  )}
+                  <span className="text-[11px] text-slate-300">
+                    {emptyTankDual.isSingleCycle ? '1º Ciclo Concluído' : `${emptyTankDual.totalEmptyTanks} tanques vazios registrados`}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          if (emptyTankDual.totalEmptyTanks === 1) {
+            return (
+              <div className="bg-amber-500/10 border border-amber-400/30 rounded-2xl p-4 space-y-2.5 text-xs text-amber-200">
+                <div className="flex items-center gap-2 font-bold text-amber-100">
+                  <Info size={16} className="text-amber-400 shrink-0" />
+                  <span>
+                    {isRecent 
+                      ? '⚡ 2. Ciclo Mais Recente (Aguardando fechamento do ciclo)' 
+                      : '📊 1. Ciclo Completo Geral (Marco Zero Definido)'}
+                  </span>
+                </div>
+                <p className="text-amber-200/90 leading-relaxed">
+                  {isRecent ? (
+                    <>Você já registrou o <b>1º Tanque Vazio</b> em <b>{emptyTankDual.firstEmptyTank?.data}</b> ({emptyTankDual.firstEmptyTank?.km} km). O cálculo do ciclo mais recente será fechado automaticamente no seu próximo abastecimento com a opção <b>Tanque Vazio (Reserva)</b> marcada!</>
+                  ) : (
+                    <>O ponto de partida do seu histórico foi registrado em <b>{emptyTankDual.firstEmptyTank?.data}</b> ({emptyTankDual.firstEmptyTank?.km} km). A partir do próximo tanque vazio, esta aba exibirá a média histórica acumulada de todos os seus ciclos.</>
+                  )}
+                </p>
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-amber-300/80">Próximo passo: Abastecer e marcar Tanque Vazio</span>
+                  {onOpenEntryModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenEntryModal}
+                      className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 transition-colors shadow-sm cursor-pointer"
+                    >
+                      + Novo Abastecimento
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // Caso 0 tanques vazios registrados ainda
+          return (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3 text-xs text-amber-100">
+              <div className="flex items-start gap-2.5">
+                <Info size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-white text-sm">
+                    {isRecent 
+                      ? '⚡ Como Funciona: 2. Ciclo Mais Recente' 
+                      : '📊 Como Funciona: 1. Ciclo Completo (Geral)'}
+                  </p>
+                  <p className="text-amber-200/90 leading-relaxed text-[11px]">
+                    {isRecent 
+                      ? 'Calcula o rendimento exato e o custo por km percorrido entre os dois últimos abastecimentos que você marcou com Tanque Vazio (Reserva).'
+                      : 'Calcula a média real acumulada de todo o histórico, medindo desde a primeira vez que você marcou Tanque Vazio até o abastecimento mais recente.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-black/20 rounded-xl border border-white/5 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-300">
+                  Para começar, basta marcar a opção <b>"Tanque Vazio (Reserva)"</b> ao abastecer.
+                </span>
+                {onOpenEntryModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenEntryModal}
+                    className="px-3 py-1.5 bg-amber-500 text-slate-950 font-black rounded-xl text-xs hover:bg-amber-400 transition-colors shrink-0 shadow-sm cursor-pointer"
+                  >
+                    + Registrar Abastecimento
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Status Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
@@ -581,60 +798,6 @@ export default function Dashboard({
           </p>
         </div>
       )}
-
-      {/* Autonomia & Consumo Real (Tanque Vazio) */}
-      {fuelCyclesSummary.cycles.length > 0 && (() => {
-        const lastCycle = fuelCyclesSummary.cycles[fuelCyclesSummary.cycles.length - 1];
-        return (
-          <div className="bg-gradient-to-br from-amber-500/20 via-slate-900/40 to-slate-900/60 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-amber-500/30 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30">
-                  <Fuel size={22} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white text-base">Consumo Real (Tanque Vazio)</h3>
-                  <p className="text-xs text-amber-200/80 font-medium">Medição real entre um tanque vazio e outro</p>
-                </div>
-              </div>
-              <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30 uppercase tracking-wider">
-                {fuelCyclesSummary.cycles.length} {fuelCyclesSummary.cycles.length === 1 ? 'Ciclo Concluído' : 'Ciclos Concluídos'}
-              </span>
-            </div>
-
-            {/* Último Ciclo */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-black text-amber-300 uppercase tracking-wider text-[10px]">Último Ciclo ({lastCycle.combustivel})</span>
-                <span className="text-blue-200 font-medium text-[11px]">{lastCycle.startDate} ➔ {lastCycle.endDate}</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                <div className="p-2 bg-white/5 rounded-xl">
-                  <p className="text-[9px] font-bold text-slate-300 uppercase">Km Rodados</p>
-                  <p className="text-base font-black text-white">+{lastCycle.kmRodados} km</p>
-                </div>
-                <div className="p-2 bg-white/5 rounded-xl">
-                  <p className="text-[9px] font-bold text-slate-300 uppercase">Consumo Real</p>
-                  <p className="text-base font-black text-amber-400">{lastCycle.mediaConsumo.toFixed(2)} <span className="text-[10px] text-slate-300">km/{lastCycle.unit}</span></p>
-                </div>
-                <div className="p-2 bg-white/5 rounded-xl">
-                  <p className="text-[9px] font-bold text-slate-300 uppercase">Custo / Km</p>
-                  <p className="text-base font-black text-emerald-400">{formatCurrency(lastCycle.custoPorKm)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Médias por tipo de combustível se houver mais de 1 ciclo */}
-            {fuelCyclesSummary.cycles.length > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-blue-200">
-                <span>Total rodado em ciclos: <b className="text-white">+{fuelCyclesSummary.totalKmRodados} km</b></span>
-                <span>Média geral: <b className="text-amber-300">{fuelCyclesSummary.mediaGeralConsumo.toFixed(2)} km/L</b></span>
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

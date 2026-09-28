@@ -1079,6 +1079,10 @@ export default function App() {
                 earningCategories={state.earningCategories}
                 onViewMaintenance={() => setActiveTab('maintenance')}
                 onOpenAIStudio={() => setIsAIVideoStudioOpen(true)}
+                onOpenEntryModal={() => {
+                  setEditingEntry(null);
+                  setIsEntryModalOpen(true);
+                }}
                 isAdmin={isAdmin}
                 uniqueVisitors={globalStats?.uniqueVisitors}
                 email={user?.email || undefined}

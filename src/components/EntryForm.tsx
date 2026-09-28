@@ -25,7 +25,8 @@ import {
   Info,
   Clock,
   Timer,
-  Hash
+  Hash,
+  History
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -38,7 +39,7 @@ import { Entry, EntryType, Category, FixedCost, PlatformEarningDetail } from '..
 import { getCategoryStyle } from '../lib/category-styles';
 import { GAS_STATIONS } from '../constants';
 import { extractInvoiceDataFromImage, extractInvoiceDataFromText } from '../services/geminiService';
-import { calculateEmptyTankCycle } from '../lib/fuel-calculator';
+import { calculateEmptyTankCycle, calculateCumulativeEmptyTankCycle } from '../lib/fuel-calculator';
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 
 interface EntryFormProps {
@@ -107,6 +108,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
   const [quantidade, setQuantidade] = useState(initialData?.quantidade?.toString() || '');
   const [valorUnitario, setValorUnitario] = useState(initialData?.valorUnitario?.toString() || '');
   const [tanqueVazio, setTanqueVazio] = useState<boolean>(initialData?.tanqueVazio || false);
+  const [previewEmptyTankMode, setPreviewEmptyTankMode] = useState<'recente' | 'completo'>('recente');
   const [bandeiraPosto, setBandeiraPosto] = useState(initialData?.bandeiraPosto || '');
   const [linkNota, setLinkNota] = useState(initialData?.linkNota || '');
   const [location, setLocation] = useState<{ lat: number; lng: number; address?: string } | null>(() => {
@@ -622,6 +624,27 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     if (isNaN(currentKmNum) || currentKmNum <= 0) return null;
 
     return calculateEmptyTankCycle(
+      {
+        id: initialData?.id,
+        data,
+        km: currentKmNum,
+        quantidade: quantidade ? Number(quantidade.replace(',', '.')) : undefined,
+        valor: valor ? Number(valor.replace(',', '.')) : undefined,
+        combustivel,
+        tanqueVazio,
+        categoriaId
+      },
+      entries,
+      categories
+    );
+  }, [isAbastecimento, km, data, quantidade, valor, combustivel, tanqueVazio, categoriaId, entries, categories, initialData?.id]);
+
+  const cumulativeEmptyTankCyclePreview = useMemo(() => {
+    if (!isAbastecimento || !km || !tanqueVazio) return null;
+    const currentKmNum = Number(km.toString().replace(',', '.'));
+    if (isNaN(currentKmNum) || currentKmNum <= 0) return null;
+
+    return calculateCumulativeEmptyTankCycle(
       {
         id: initialData?.id,
         data,
@@ -1630,52 +1653,98 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
         />
         
         {/* Ciclo de Tanque Vazio Preview */}
-        {isAbastecimento && tanqueVazio && emptyTankCyclePreview?.hasCycle && (
-          <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 p-4 rounded-2xl text-white shadow-lg shadow-amber-200 border border-amber-400/40 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-white/20 rounded-lg">
-                  <Fuel className="text-white" size={18} />
+        {isAbastecimento && tanqueVazio && (emptyTankCyclePreview?.hasCycle || cumulativeEmptyTankCyclePreview?.hasCycle) && (() => {
+          const hasBoth = !!(emptyTankCyclePreview?.hasCycle && cumulativeEmptyTankCyclePreview?.hasCycle && cumulativeEmptyTankCyclePreview.startKm !== emptyTankCyclePreview.startKm);
+          const activePreview = (hasBoth && previewEmptyTankMode === 'completo') ? cumulativeEmptyTankCyclePreview : (emptyTankCyclePreview || cumulativeEmptyTankCyclePreview);
+          if (!activePreview || !activePreview.hasCycle) return null;
+
+          return (
+            <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 p-4 rounded-2xl text-white shadow-lg shadow-amber-200 border border-amber-400/40 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-white/20 rounded-lg">
+                    <Fuel className="text-white" size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-100">Ciclo de Tanque Vazio Concluído</h4>
+                    <p className="text-[11px] text-amber-100/90 font-medium">Consumo real medido entre tanques vazios</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 bg-white/25 text-white text-[10px] font-black rounded-full uppercase tracking-wider">
+                  {activePreview.combustivel}
+                </span>
+              </div>
+
+              {hasBoth && (
+                <div className="grid grid-cols-2 gap-2 p-1 bg-black/25 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewEmptyTankMode('completo')}
+                    className={cn(
+                      "py-1 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer",
+                      previewEmptyTankMode === 'completo'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-amber-100 hover:bg-white/10"
+                    )}
+                  >
+                    <History size={12} />
+                    1. Ciclo Completo (Geral)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewEmptyTankMode('recente')}
+                    className={cn(
+                      "py-1 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer",
+                      previewEmptyTankMode === 'recente'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-amber-100 hover:bg-white/10"
+                    )}
+                  >
+                    <Zap size={12} />
+                    2. Ciclo Mais Recente
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[11px] text-amber-100 font-bold bg-black/15 px-2.5 py-1 rounded-lg border border-white/10">
+                <span>
+                  {hasBoth && previewEmptyTankMode === 'completo'
+                    ? '📊 1. Ciclo Completo (1º ao atual)'
+                    : '⚡ 2. Ciclo Mais Recente (Últimos 2)'}
+                </span>
+                <span>{activePreview.startDate} ➔ {activePreview.endDate}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 bg-black/15 p-3 rounded-xl border border-white/10 text-center">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Km Rodados</p>
+                  <p className="text-base font-black text-white">+{activePreview.kmRodados} km</p>
+                  <p className="text-[9px] text-amber-200/80 font-medium">de {activePreview.startKm} a {activePreview.endKm}</p>
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-100">Ciclo de Tanque Vazio Concluído</h4>
-                  <p className="text-[11px] text-amber-100/90 font-medium">Consumo real entre um tanque vazio e outro</p>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Consumido</p>
+                  <p className="text-base font-black text-white">{activePreview.combustivelConsumido.toFixed(1)} {activePreview.unit}</p>
+                  <p className="text-[9px] text-amber-200/80 font-medium">no ciclo</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Média Real</p>
+                  <p className="text-base font-black text-white">{activePreview.mediaConsumo.toFixed(2)}</p>
+                  <p className="text-[9px] text-amber-200/80 font-medium">km/{activePreview.unit}</p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 bg-white/25 text-white text-[10px] font-black rounded-full uppercase tracking-wider">
-                {emptyTankCyclePreview.combustivel}
-              </span>
-            </div>
 
-            <div className="grid grid-cols-3 gap-2 bg-black/15 p-3 rounded-xl border border-white/10 text-center">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Km Rodados</p>
-                <p className="text-base font-black text-white">+{emptyTankCyclePreview.kmRodados} km</p>
-                <p className="text-[9px] text-amber-200/80 font-medium">de {emptyTankCyclePreview.startKm} a {emptyTankCyclePreview.endKm}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Consumido</p>
-                <p className="text-base font-black text-white">{emptyTankCyclePreview.combustivelConsumido.toFixed(1)} {emptyTankCyclePreview.unit}</p>
-                <p className="text-[9px] text-amber-200/80 font-medium">no ciclo</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Média Real</p>
-                <p className="text-base font-black text-white">{emptyTankCyclePreview.mediaConsumo.toFixed(2)}</p>
-                <p className="text-[9px] text-amber-200/80 font-medium">km/{emptyTankCyclePreview.unit}</p>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-white/15 text-amber-100 font-medium">
+                <span className="flex items-center gap-1">
+                  <Coins size={14} className="text-amber-200" />
+                  Custo: <b>R$ {activePreview.custoPorKm.toFixed(2)}/km</b>
+                </span>
+                <span>
+                  Total: <b>R$ {activePreview.valorConsumido.toFixed(2)}</b> ({activePreview.diasCiclo} {activePreview.diasCiclo === 1 ? 'dia' : 'dias'})
+                </span>
               </div>
             </div>
-
-            <div className="flex items-center justify-between text-xs pt-1 border-t border-white/15 text-amber-100 font-medium">
-              <span className="flex items-center gap-1">
-                <Coins size={14} className="text-amber-200" />
-                Custo: <b>R$ {emptyTankCyclePreview.custoPorKm.toFixed(2)}/km</b>
-              </span>
-              <span>
-                Total gasto no ciclo: <b>R$ {emptyTankCyclePreview.valorConsumido.toFixed(2)}</b> ({emptyTankCyclePreview.diasCiclo} {emptyTankCyclePreview.diasCiclo === 1 ? 'dia' : 'dias'})
-              </span>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Marco Zero de Tanque Vazio */}
         {isAbastecimento && tanqueVazio && emptyTankCyclePreview?.isFirstEmptyTank && (

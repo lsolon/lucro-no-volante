@@ -33,12 +33,13 @@ import {
   Zap,
   Clock,
   Timer,
-  Hash
+  Hash,
+  History
 } from 'lucide-react';
 import { cn, parseEntryDate, formatTimeToHHMM } from '../lib/utils';
 import { Entry, Category } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
-import { calculateEmptyTankCycle } from '../lib/fuel-calculator';
+import { calculateEmptyTankCycle, calculateCumulativeEmptyTankCycle } from '../lib/fuel-calculator';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface EntryListProps {
@@ -59,6 +60,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+  const [modalEmptyTankMode, setModalEmptyTankMode] = useState<'recente' | 'completo'>('recente');
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'value_desc' | 'value_asc'>('date_desc');
 
@@ -746,50 +748,107 @@ export default function EntryList({ entries, categories, earningCategories, refu
               {/* Ciclo de Tanque Vazio no Modal */}
               {selectedEntry.tanqueVazio && (() => {
                 const cycle = calculateEmptyTankCycle(selectedEntry, entries, categories);
-                if (cycle.hasCycle) {
+                const cumulativeCycle = calculateCumulativeEmptyTankCycle(selectedEntry, entries, categories);
+                const hasBoth = cycle.hasCycle && cumulativeCycle.hasCycle && cumulativeCycle.startKm !== cycle.startKm;
+
+                if (cycle.hasCycle || cumulativeCycle.hasCycle) {
+                  const activeCycle = (hasBoth && modalEmptyTankMode === 'completo') ? cumulativeCycle : cycle;
+
                   return (
                     <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-3xl p-5 text-white shadow-lg space-y-4 border border-amber-400/40">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5">
                           <div className="p-2 bg-white/20 rounded-xl">
                             <Fuel size={20} className="text-white" />
                           </div>
                           <div>
                             <h4 className="text-xs font-black uppercase tracking-wider text-amber-100">Desempenho do Ciclo (Tanque Vazio)</h4>
-                            <p className="text-[11px] text-amber-100/90 font-medium">Consumo calculado entre um tanque vazio e outro</p>
+                            <p className="text-[11px] text-amber-100/90 font-medium">Consumo real medido na bomba</p>
                           </div>
                         </div>
                         <span className="px-2.5 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-wider">
-                          {cycle.combustivel}
+                          {activeCycle.combustivel}
                         </span>
+                      </div>
+
+                      {hasBoth && (
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-black/25 rounded-2xl border border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => setModalEmptyTankMode('completo')}
+                            className={cn(
+                              "py-2 px-2.5 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer",
+                              modalEmptyTankMode === 'completo'
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-amber-100 hover:bg-white/10"
+                            )}
+                          >
+                            <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                              <History size={12} />
+                              1. Ciclo Completo (Geral)
+                            </span>
+                            <span className="text-[9px] opacity-80">Do 1º abastecimento até este</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModalEmptyTankMode('recente')}
+                            className={cn(
+                              "py-2 px-2.5 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer",
+                              modalEmptyTankMode === 'recente'
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-amber-100 hover:bg-white/10"
+                            )}
+                          >
+                            <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                              <Zap size={12} />
+                              2. Ciclo Mais Recente
+                            </span>
+                            <span className="text-[9px] opacity-80">Deste abastecimento</span>
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center justify-between text-[11px] text-amber-100 font-bold bg-black/15 px-3 py-1.5 rounded-xl border border-white/10 gap-1">
+                        <span>
+                          {hasBoth && modalEmptyTankMode === 'completo'
+                            ? '📊 1. Ciclo Completo Acumulado (1º tanque vazio até este)'
+                            : '⚡ 2. Ciclo Mais Recente (Deste Abastecimento)'}
+                        </span>
+                        <span>{activeCycle.startDate} ➔ {activeCycle.endDate} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})</span>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-black/20 p-3.5 rounded-2xl border border-white/10 text-center">
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Km Rodados</p>
-                          <p className="text-lg font-black text-white">+{cycle.kmRodados} km</p>
-                          <p className="text-[9px] text-amber-200/80 font-medium">{cycle.startKm} ➔ {cycle.endKm}</p>
+                          <p className="text-lg font-black text-white">+{activeCycle.kmRodados} km</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">{activeCycle.startKm} ➔ {activeCycle.endKm}</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Consumido</p>
-                          <p className="text-lg font-black text-white">{cycle.combustivelConsumido.toFixed(1)} {cycle.unit}</p>
+                          <p className="text-lg font-black text-white">{activeCycle.combustivelConsumido.toFixed(1)} {activeCycle.unit}</p>
                           <p className="text-[9px] text-amber-200/80 font-medium">no ciclo</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Média Real</p>
-                          <p className="text-lg font-black text-white">{cycle.mediaConsumo.toFixed(2)}</p>
-                          <p className="text-[9px] text-amber-200/80 font-medium">km/{cycle.unit}</p>
+                          <p className="text-lg font-black text-white">{activeCycle.mediaConsumo.toFixed(2)}</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">km/{activeCycle.unit}</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Custo por Km</p>
-                          <p className="text-lg font-black text-white">{formatCurrency(cycle.custoPorKm)}</p>
+                          <p className="text-lg font-black text-white">{formatCurrency(activeCycle.custoPorKm)}</p>
                           <p className="text-[9px] text-amber-200/80 font-medium">por km rodado</p>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-white/15 text-amber-100 font-medium gap-2">
-                        <span>Período: <b>{cycle.startDate}</b> até <b>{cycle.endDate}</b> ({cycle.diasCiclo} {cycle.diasCiclo === 1 ? 'dia' : 'dias'})</span>
-                        <span>Total Gasto: <b>{formatCurrency(cycle.valorConsumido)}</b></span>
+                        <span>Total Gasto: <b>{formatCurrency(activeCycle.valorConsumido)}</b></span>
+                        {hasBoth && (
+                          <span className="text-[11px] text-amber-200">
+                            {modalEmptyTankMode === 'completo'
+                              ? `Ciclo Recente: +${cycle.kmRodados} km (${cycle.mediaConsumo.toFixed(2)} km/${cycle.unit})`
+                              : `Ciclo Geral: +${cumulativeCycle.kmRodados} km (${cumulativeCycle.mediaConsumo.toFixed(2)} km/${cumulativeCycle.unit})`}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
