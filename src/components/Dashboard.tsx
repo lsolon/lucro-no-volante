@@ -326,140 +326,27 @@ export default function Dashboard({
         </div>
       )}
       
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <button 
-          onClick={() => {
-            const el = document.getElementById('consumo-real-tanque-vazio');
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }}
-          className="py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-95 transition-all cursor-pointer border border-amber-300"
-        >
-          <Fuel size={18} className="text-slate-950" />
-          <span>Consumo Real (Tanque Vazio)</span>
-        </button>
-
+      {/* Share App & Marketing Buttons */}
+      <div className={cn("grid gap-3", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
         <button 
           onClick={handleShare}
-          className="py-3.5 px-4 bg-white text-[#0047AB] rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-black/20 active:scale-95 transition-all cursor-pointer"
+          className="py-4 bg-white text-[#0047AB] rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/20 active:scale-95 transition-all cursor-pointer"
         >
-          <Share2 size={16} className="text-blue-600" />
-          <span>Indicar App</span>
+          <Share2 size={18} className="text-blue-600" />
+          Indicar App
         </button>
+        {isAdmin && (
+          <button 
+            onClick={onOpenAIStudio}
+            className="py-4 bg-blue-600 text-white rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-900/40 active:scale-95 transition-all cursor-pointer"
+          >
+            <Sparkles size={18} className="text-blue-200" />
+            Criar Propaganda
+          </button>
+        )}
       </div>
 
-      {isAdmin && (
-        <button 
-          onClick={onOpenAIStudio}
-          className="w-full py-3 bg-blue-600 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40 active:scale-95 transition-all cursor-pointer"
-        >
-          <Sparkles size={16} className="text-blue-200" />
-          Criar Propaganda com IA
-        </button>
-      )}
-
-
-      {/* Daily Goal Card (Prominent) */}
-      <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/10 overflow-hidden relative">
-        <div className="absolute top-0 right-0 p-8 opacity-5">
-          <Target size={120} className="text-white" />
-        </div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white rounded-2xl shadow-lg shadow-blue-900/20">
-                <Target className="text-blue-600 size-5" />
-              </div>
-              <div>
-                <h3 className="font-black text-white text-lg tracking-tight">Meta Diária</h3>
-                <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] opacity-80">Custo Fixo + Gastos + 10% Lucro</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className={cn(
-                "text-xs font-black px-3 py-1 rounded-full",
-                dailyGoalData.percentToday >= 100 ? "bg-emerald-500/20 text-emerald-300" : "bg-blue-500/20 text-blue-300"
-              )}>
-                {dailyGoalData.percentToday.toFixed(0)}%
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-4">
-            <div>
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Ganhos de Hoje</p>
-              <p className="text-2xl font-black text-white tracking-tighter">
-                {formatCurrency(totals.todayEarnings)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Meta Sugerida</p>
-              <p className="text-2xl font-black text-blue-300 tracking-tighter">
-                {formatCurrency(dailyGoalData.target)}
-              </p>
-            </div>
-          </div>
-
-          <div className="mb-6 p-4 bg-white/5 rounded-3xl border border-white/10 flex justify-between items-center">
-            <div>
-              <p className={cn(
-                "text-[10px] font-black uppercase tracking-[0.15em] mb-0.5",
-                dailyGoalData.todayProfit >= 0 ? "text-emerald-400" : "text-rose-400"
-              )}>
-                {dailyGoalData.todayProfit >= 0 ? "Lucro do Dia" : "Falta para sair do prejuízo"}
-              </p>
-              <p className={cn(
-                "text-2xl font-black tracking-tighter leading-none",
-                dailyGoalData.todayProfit >= 0 ? "text-emerald-400" : "text-rose-400"
-              )}>
-                {formatCurrency(Math.abs(dailyGoalData.todayProfit))}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-0.5 opacity-70">Gasto Real</p>
-              <p className="text-lg font-black text-white leading-none">
-                {formatCurrency(totals.todayExpenses)}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, dailyGoalData.percentToday)}%` }}
-                className={cn(
-                  "h-full rounded-full shadow-sm transition-all duration-1000",
-                  dailyGoalData.percentToday >= 100 ? "bg-emerald-400" : "bg-blue-400"
-                )}
-              />
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <p className="text-[10px] font-bold text-blue-100">
-                {dailyGoalData.remainingToday > 0 
-                  ? `Faltam ${formatCurrency(dailyGoalData.remainingToday)} para bater a meta`
-                  : "🎉 Meta diária atingida! Tudo agora é lucro real!"}
-              </p>
-              <div className="flex gap-2">
-                <div className="flex items-center gap-1">
-                  <div className="size-1.5 rounded-full bg-blue-300/50" />
-                  <span className="text-[8px] font-bold text-blue-200 uppercase">Fixo: {formatCurrency(dailyGoalData.dailyFixed)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="size-1.5 rounded-full bg-blue-300/50" />
-                  <span className="text-[8px] font-bold text-blue-200 uppercase">Gasto Hoje: {formatCurrency(dailyGoalData.todayExpenses)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <PWAInstallButton />
-
-      {/* Autonomia & Consumo Real (Tanque Vazio) - SEMPRE VISÍVEL NO TOPO */}
+      {/* Autonomia & Consumo Real (Tanque Vazio) - BEM NO TOPO ANTES DA META DIÁRIA */}
       <div id="consumo-real-tanque-vazio" className="bg-gradient-to-br from-amber-500/20 via-slate-900/60 to-slate-900/80 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-amber-500/40 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
@@ -652,6 +539,106 @@ export default function Dashboard({
           );
         })()}
       </div>
+
+      {/* Daily Goal Card (Prominent) */}
+      <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/10 overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+          <Target size={120} className="text-white" />
+        </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-white rounded-2xl shadow-lg shadow-blue-900/20">
+                <Target className="text-blue-600 size-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-white text-lg tracking-tight">Meta Diária</h3>
+                <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] opacity-80">Custo Fixo + Gastos + 10% Lucro</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className={cn(
+                "text-xs font-black px-3 py-1 rounded-full",
+                dailyGoalData.percentToday >= 100 ? "bg-emerald-500/20 text-emerald-300" : "bg-blue-500/20 text-blue-300"
+              )}>
+                {dailyGoalData.percentToday.toFixed(0)}%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-4">
+            <div>
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Ganhos de Hoje</p>
+              <p className="text-2xl font-black text-white tracking-tighter">
+                {formatCurrency(totals.todayEarnings)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Meta Sugerida</p>
+              <p className="text-2xl font-black text-blue-300 tracking-tighter">
+                {formatCurrency(dailyGoalData.target)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6 p-4 bg-white/5 rounded-3xl border border-white/10 flex justify-between items-center">
+            <div>
+              <p className={cn(
+                "text-[10px] font-black uppercase tracking-[0.15em] mb-0.5",
+                dailyGoalData.todayProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}>
+                {dailyGoalData.todayProfit >= 0 ? "Lucro do Dia" : "Falta para sair do prejuízo"}
+              </p>
+              <p className={cn(
+                "text-2xl font-black tracking-tighter leading-none",
+                dailyGoalData.todayProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}>
+                {formatCurrency(Math.abs(dailyGoalData.todayProfit))}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-0.5 opacity-70">Gasto Real</p>
+              <p className="text-lg font-black text-white leading-none">
+                {formatCurrency(totals.todayExpenses)}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, dailyGoalData.percentToday)}%` }}
+                className={cn(
+                  "h-full rounded-full shadow-sm transition-all duration-1000",
+                  dailyGoalData.percentToday >= 100 ? "bg-emerald-400" : "bg-blue-400"
+                )}
+              />
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <p className="text-[10px] font-bold text-blue-100">
+                {dailyGoalData.remainingToday > 0 
+                  ? `Faltam ${formatCurrency(dailyGoalData.remainingToday)} para bater a meta`
+                  : "🎉 Meta diária atingida! Tudo agora é lucro real!"}
+              </p>
+              <div className="flex gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="size-1.5 rounded-full bg-blue-300/50" />
+                  <span className="text-[8px] font-bold text-blue-200 uppercase">Fixo: {formatCurrency(dailyGoalData.dailyFixed)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="size-1.5 rounded-full bg-blue-300/50" />
+                  <span className="text-[8px] font-bold text-blue-200 uppercase">Gasto Hoje: {formatCurrency(dailyGoalData.todayExpenses)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <PWAInstallButton />
 
       {/* Status Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
