@@ -51,9 +51,47 @@ interface EntryFormProps {
   entries: Entry[];
   initialData?: Entry;
   fixedCosts: FixedCost[];
+  combustivelPrincipal?: string;
+  onUpdateCombustivelPrincipal?: (fuel: string) => void;
 }
 
-export default function EntryForm({ onSubmit, categories, earningCategories, refundCategories, lastKm, entries, initialData, fixedCosts }: EntryFormProps) {
+export default function EntryForm({ 
+  onSubmit, 
+  categories, 
+  earningCategories, 
+  refundCategories, 
+  lastKm, 
+  entries, 
+  initialData, 
+  fixedCosts,
+  combustivelPrincipal,
+  onUpdateCombustivelPrincipal
+}: EntryFormProps) {
+  const detectedDefaultPrincipal = useMemo(() => {
+    if (initialData?.combustivelPrincipal) return initialData.combustivelPrincipal;
+    if (combustivelPrincipal) return combustivelPrincipal;
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('combustivel_principal') : null;
+    if (stored) return stored;
+    const hasGNV = entries.some(e => e.combustivel?.toLowerCase() === 'gnv');
+    return hasGNV ? 'GNV' : 'Gasolina';
+  }, [initialData, combustivelPrincipal, entries]);
+
+  const [principalFuel, setPrincipalFuel] = useState<string>(detectedDefaultPrincipal);
+
+  useEffect(() => {
+    if (combustivelPrincipal && !initialData?.combustivelPrincipal) {
+      setPrincipalFuel(combustivelPrincipal);
+    }
+  }, [combustivelPrincipal, initialData]);
+
+  const handlePrincipalFuelChange = (newFuel: string) => {
+    setPrincipalFuel(newFuel);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('combustivel_principal', newFuel);
+    }
+    onUpdateCombustivelPrincipal?.(newFuel);
+  };
+
   const [tipo, setTipo] = useState<EntryType>(initialData?.tipo || 'Ganhos');
   const [data, setData] = useState(() => {
     if (initialData?.data) {
@@ -64,7 +102,11 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
   });
   const [categoriaId, setCategoriaId] = useState(initialData?.categoriaId || '10'); // Default to Fechamento do Dia
   const [valor, setValor] = useState(initialData?.valor?.toString() || '');
-  const [km, setKm] = useState(initialData?.km?.toString() || (lastKm > 0 ? lastKm.toString() : ''));
+  const [km, setKm] = useState(
+    initialData?.km !== undefined && initialData?.km !== null && Number(initialData.km) > 0
+      ? initialData.km.toString()
+      : ''
+  );
   const [ganhos, setGanhos] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     earningCategories.forEach(cat => {
@@ -104,7 +146,9 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     return !!initialData?.reembolsos && Object.values(initialData.reembolsos).some(v => Number(v) > 0);
   });
   const [obs, setObs] = useState(initialData?.obs || '');
-  const [combustivel, setCombustivel] = useState(initialData?.combustivel || 'Gasolina');
+  const [combustivel, setCombustivel] = useState(
+    initialData?.combustivel || principalFuel || 'Gasolina'
+  );
   const [quantidade, setQuantidade] = useState(initialData?.quantidade?.toString() || '');
   const [valorUnitario, setValorUnitario] = useState(initialData?.valorUnitario?.toString() || '');
   const [tanqueVazio, setTanqueVazio] = useState<boolean>(initialData?.tanqueVazio || false);
@@ -160,7 +204,11 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
   const [garantiaMeses, setGarantiaMeses] = useState('');
 
   const selectedCategory = categories.find(c => c.id === categoriaId);
-  const isAbastecimento = selectedCategory?.nome.toLowerCase() === 'abastecimento';
+  const isAbastecimento = !!selectedCategory && (
+    selectedCategory.id === '1' ||
+    selectedCategory.nome.toLowerCase().trim() === 'abastecimento' ||
+    selectedCategory.nome.toLowerCase().includes('abastec')
+  );
   const isAlimentacao = selectedCategory?.nome.toLowerCase() === 'alimentação' || selectedCategory?.nome.toLowerCase() === 'alimentacao';
   
   const isFixedCost = useMemo(() => {
@@ -196,12 +244,25 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
   }, [entries, categories, initialData]);
   
   const kmPlaceholder = tipo === 'Despesa' && lastRefuelingKm && lastRefuelingKm > 0 
-    ? lastRefuelingKm.toString() 
-    : (lastKm > 0 ? lastKm.toString() : "Digite o KM atual");
+    ? `Ex: ${lastRefuelingKm.toString()}` 
+    : (lastKm > 0 ? `Ex: ${lastKm.toString()}` : "Digite o KM atual (opcional)");
 
   const isTrocaOleo = selectedCategory?.nome.toLowerCase() === 'troca de oleo' || selectedCategory?.nome.toLowerCase() === 'troca de óleo';
   const isMaintenance = selectedCategory?.nome.toLowerCase() === 'manutenção' || selectedCategory?.parentId === '3';
   const hasLocation = ['abastecimento', 'lavagem', 'manutenção', 'alimentação', 'alimentacao'].includes(selectedCategory?.nome.toLowerCase() || '') || selectedCategory?.parentId === '3';
+
+  const isMainFuel = useMemo(() => {
+    if (!isAbastecimento) return true;
+    return combustivel.trim().toLowerCase() === principalFuel.trim().toLowerCase();
+  }, [isAbastecimento, combustivel, principalFuel]);
+
+  const isKmDisabled = isAbastecimento && !isMainFuel;
+
+  useEffect(() => {
+    if (isKmDisabled && km) {
+      setKm('');
+    }
+  }, [isKmDisabled]);
 
   // Auto-get location if category supports it
   useEffect(() => {
@@ -679,8 +740,17 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     e.preventDefault();
     setFormError(null);
     
-    if (tipo === 'Despesa' && (isAbastecimento || isTrocaOleo || isMaintenance) && !km) {
-      setFormError('O preenchimento do KM é obrigatório para este lançamento.');
+    const isKmTyped = Boolean(km && km.toString().trim() !== '');
+    const isKmRequired = isAbastecimento 
+      ? isMainFuel 
+      : (tipo === 'Despesa' && (isTrocaOleo || isMaintenance));
+
+    if (isKmRequired && !isKmTyped) {
+      if (isAbastecimento) {
+        setFormError(`O preenchimento do KM é obrigatório para o combustível principal (${principalFuel}).`);
+      } else {
+        setFormError('O preenchimento do KM é obrigatório para este lançamento.');
+      }
       return;
     }
 
@@ -752,8 +822,8 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
       }
     }
 
-    const currentKmNum = Number(km.toString().replace(',', '.'));
-    const validKm = isNaN(currentKmNum) ? undefined : (currentKmNum || undefined);
+    const currentKmNum = (!isKmDisabled && isKmTyped) ? Number(km.toString().replace(',', '.')) : NaN;
+    const validKm = (!isKmDisabled && isKmTyped && !isNaN(currentKmNum) && currentKmNum > 0) ? currentKmNum : undefined;
     const kmRodado = (lastRefuelingKm && validKm) ? (validKm - lastRefuelingKm) : undefined;
 
     const now = new Date();
@@ -804,7 +874,8 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
             km: i === 0 ? validKm : undefined,
             kmRodado: i === 0 ? (initialData?.kmRodado || kmRodado) : undefined,
             combustivel: isAbastecimento ? combustivel : undefined,
-            tanqueVazio: i === 0 ? (isAbastecimento ? tanqueVazio : undefined) : undefined,
+            combustivelPrincipal: isAbastecimento ? principalFuel : undefined,
+            tanqueVazio: i === 0 ? ((isAbastecimento && isMainFuel) ? tanqueVazio : undefined) : undefined,
             quantidade: i === 0 ? (isNaN(currentQty as number) ? undefined : currentQty) : undefined,
             valorUnitario: i === 0 ? (isNaN(currentPrice as number) ? undefined : currentPrice) : undefined,
             bandeiraPosto: i === 0 ? (isAbastecimento ? bandeiraPosto : undefined) : undefined,
@@ -841,7 +912,8 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
       km: validKm,
       kmRodado: initialData?.kmRodado || kmRodado,
       combustivel: isAbastecimento ? combustivel : undefined,
-      tanqueVazio: isAbastecimento ? tanqueVazio : undefined,
+      combustivelPrincipal: isAbastecimento ? principalFuel : undefined,
+      tanqueVazio: (isAbastecimento && isMainFuel) ? tanqueVazio : undefined,
       quantidade: isNaN(currentQty as number) ? undefined : currentQty,
       valorUnitario: isNaN(currentPrice as number) ? undefined : currentPrice,
       bandeiraPosto: isAbastecimento ? bandeiraPosto : undefined,
@@ -1239,6 +1311,41 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
               </div>
             </div>
           </div>
+
+          {/* Campo informando qual o combustível principal do veículo */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between ml-1">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                <Fuel size={14} className="text-blue-600" />
+                Combustível Principal do Veículo
+              </label>
+              <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md border border-blue-100">
+                Odômetro Vinculado
+              </span>
+            </div>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600">
+                <Fuel size={18} />
+              </div>
+              <select
+                value={principalFuel}
+                onChange={(e) => handlePrincipalFuelChange(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+              >
+                <option value="GNV">GNV (Gás Natural Veicular)</option>
+                <option value="Gasolina">Gasolina</option>
+                <option value="Etanol">Etanol</option>
+                <option value="Diesel">Diesel</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ChevronDown size={18} />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 ml-1 font-medium">
+              * O campo "Km Atual" nos abastecimentos fica habilitado e obrigatório apenas para o <strong>{principalFuel}</strong>.
+            </p>
+          </div>
+
           <InputGroup 
             label="Valor Total da Despesa" 
             value={valor} 
@@ -1334,23 +1441,43 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Tipo de Combustível</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {['Gasolina', 'Etanol', 'GNV'].map((type, idx) => (
-                    <button
-                      key={`${type}-${idx}`}
-                      type="button"
-                      onClick={() => setCombustivel(type)}
-                      className={cn(
-                        "py-4 px-2 rounded-2xl text-xs font-black border-2 transition-all",
-                        combustivel === type 
-                          ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
-                          : "bg-white border-slate-100 text-slate-500 hover:border-slate-200"
-                      )}
-                    >
-                      {type}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Tipo de Combustível</label>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    Abastecido neste registro
+                  </span>
+                </div>
+                <div className={cn(
+                  "grid gap-3",
+                  principalFuel === 'Diesel' ? "grid-cols-4" : "grid-cols-3"
+                )}>
+                  {['Gasolina', 'Etanol', 'GNV', ...(principalFuel === 'Diesel' ? ['Diesel'] : [])].map((type, idx) => {
+                    const isTypeMain = type.toLowerCase() === principalFuel.toLowerCase();
+                    const isSelected = combustivel === type;
+                    return (
+                      <button
+                        key={`${type}-${idx}`}
+                        type="button"
+                        onClick={() => setCombustivel(type)}
+                        className={cn(
+                          "py-3 px-2 rounded-2xl text-xs font-black border-2 transition-all flex flex-col items-center justify-center gap-1.5",
+                          isSelected 
+                            ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
+                            : "bg-white border-slate-100 text-slate-600 hover:border-slate-200"
+                        )}
+                      >
+                        <span className="text-sm font-black">{type}</span>
+                        <span className={cn(
+                          "text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider",
+                          isTypeMain
+                            ? (isSelected ? "bg-blue-800 text-white" : "bg-blue-100 text-blue-700")
+                            : (isSelected ? "bg-slate-700 text-slate-200" : "bg-slate-100 text-slate-400")
+                        )}>
+                          {isTypeMain ? 'Principal' : 'Secundário'}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               
@@ -1643,14 +1770,37 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
           </button>
         </div>
 
-        <InputGroup 
-          label="Km Atual" 
-          value={km} 
-          onChange={setKm} 
-          placeholder={kmPlaceholder} 
-          type="number"
-          icon={<Car className="text-slate-400" size={18} />}
-        />
+        <div>
+          <InputGroup 
+            label="Km Atual" 
+            value={isKmDisabled ? '' : km} 
+            onChange={setKm} 
+            placeholder={isKmDisabled ? `Desabilitado (apenas para ${principalFuel})` : kmPlaceholder} 
+            type="number"
+            icon={<Car className={isKmDisabled ? "text-slate-300" : "text-slate-400"} size={18} />}
+            disabled={isKmDisabled}
+          />
+          <p className={cn(
+            "text-[10px] mt-1 ml-1 font-medium",
+            isKmDisabled ? "text-amber-600" : "text-slate-400"
+          )}>
+            {isAbastecimento ? (
+              isMainFuel ? (
+                <span className="text-blue-600 font-bold flex items-center gap-1">
+                  <span>★</span> Obrigatório para o combustível principal ({principalFuel})
+                </span>
+              ) : (
+                <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md inline-block border border-amber-200">
+                  🔒 Desabilitado: o Km Atual só é registrado para o combustível principal ({principalFuel}).
+                </span>
+              )
+            ) : (tipo === 'Despesa' && (isTrocaOleo || isMaintenance)) ? (
+              'Obrigatório para este lançamento'
+            ) : (
+              'Opcional • Só será gravado na tabela se você digitar'
+            )}
+          </p>
+        </div>
         
         {/* Ciclo de Tanque Vazio Preview */}
         {isAbastecimento && tanqueVazio && (emptyTankCyclePreview?.hasCycle || cumulativeEmptyTankCyclePreview?.hasCycle) && (() => {

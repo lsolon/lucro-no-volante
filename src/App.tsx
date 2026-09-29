@@ -85,7 +85,7 @@ import MarketingFlyer from './components/MarketingFlyer';
 import ManualModal from './components/ManualModal';
 import SystemMaintenanceView from './components/SystemMaintenanceView';
 
-const APP_VERSION = '1.1.7';
+const APP_VERSION = '1.2.0';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -177,7 +177,7 @@ export default function App() {
     const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
     
     // Only reload if the remote version changes mid-session or across sessions
-    if (currentStoredVersion !== remoteVersion && !adminMode) {
+    if (currentStoredVersion !== remoteVersion) {
       console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Triggering reload...`);
       localStorage.setItem('remote_published_version', remoteVersion);
       if ('serviceWorker' in navigator) {
@@ -361,6 +361,7 @@ export default function App() {
           refundCategories: uniqueRefundCats,
           currentKm: data.currentKm || 0,
           targetKm: data.targetKm || 0,
+          combustivelPrincipal: data.combustivelPrincipal || undefined,
           maintenanceIntervals: mergedIntervals,
           trialStartDate: trialStart,
           appSheetMapping: data.appSheetMapping,
@@ -869,6 +870,17 @@ export default function App() {
     }
   }, [user]);
 
+  const handleUpdateCombustivelPrincipal = useCallback(async (fuel: string) => {
+    setState(prev => ({ ...prev, combustivelPrincipal: fuel }));
+    if (!user) return;
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, cleanObject({ combustivelPrincipal: fuel }), { merge: true });
+    } catch (error) {
+      console.warn('Erro ao atualizar combustível principal:', error);
+    }
+  }, [user]);
+
   const handleUpdateAppConfig = useCallback(async (config: any) => {
     if (!isAdmin) return;
     try {
@@ -1024,7 +1036,12 @@ export default function App() {
               <Car className="text-[#0047AB] size-6" />
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-tight leading-none">LucroNoVolante</h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-bold text-lg tracking-tight leading-none">LucroNoVolante</h1>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white tracking-wide">
+                  v{APP_VERSION}
+                </span>
+              </div>
               {user.displayName && (
                 <p className="text-[10px] opacity-80 font-medium mt-0.5">Olá, {user.displayName.split(' ')[0]}</p>
               )}
@@ -1200,6 +1217,8 @@ export default function App() {
                 currentKm={state.currentKm}
                 onUpdateCurrentKm={handleUpdateCurrentKm}
                 lastRecordedKm={lastRecordedKm}
+                combustivelPrincipal={state.combustivelPrincipal}
+                onUpdateCombustivelPrincipal={handleUpdateCombustivelPrincipal}
                 maintenanceIntervals={state.maintenanceIntervals}
                 onUpdateMaintenanceIntervals={handleUpdateMaintenanceIntervals}
                 isAdmin={isAdmin}
@@ -1310,7 +1329,10 @@ export default function App() {
               className="relative bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl text-slate-900"
             >
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h2 className="font-bold text-lg">{editingEntry ? 'Editar Lançamento' : 'Novo Lançamento'}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-bold text-lg">{editingEntry ? 'Editar Lançamento' : 'Novo Lançamento'}</h2>
+                  <span className="text-[10px] font-black px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">v{APP_VERSION}</span>
+                </div>
                 <button 
                   onClick={() => {
                     setIsEntryModalOpen(false);
@@ -1331,6 +1353,8 @@ export default function App() {
                   entries={state.entries}
                   initialData={editingEntry || undefined}
                   fixedCosts={state.fixedCosts}
+                  combustivelPrincipal={state.combustivelPrincipal}
+                  onUpdateCombustivelPrincipal={handleUpdateCombustivelPrincipal}
                 />
               </div>
             </motion.div>

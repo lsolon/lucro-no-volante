@@ -65,6 +65,8 @@ interface SettingsViewProps {
   currentKm: number;
   onUpdateCurrentKm: (km: number) => void;
   lastRecordedKm: number;
+  combustivelPrincipal?: string;
+  onUpdateCombustivelPrincipal?: (fuel: string) => void;
   maintenanceIntervals: MaintenanceInterval[];
   onUpdateMaintenanceIntervals: (intervals: MaintenanceInterval[]) => void;
   isAdmin?: boolean;
@@ -94,6 +96,8 @@ export default function SettingsView({
   currentKm,
   onUpdateCurrentKm,
   lastRecordedKm,
+  combustivelPrincipal = 'Gasolina',
+  onUpdateCombustivelPrincipal,
   maintenanceIntervals,
   onUpdateMaintenanceIntervals,
   isAdmin,
@@ -804,6 +808,28 @@ export default function SettingsView({
               </div>
               <p className="text-[10px] text-slate-400 ml-1 italic">
                 * Este valor é atualizado automaticamente ao registrar um abastecimento ou manutenção.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-bold text-slate-500 ml-1">Combustível Principal do Veículo</label>
+              <div className="relative">
+                <select
+                  value={combustivelPrincipal}
+                  onChange={(e) => onUpdateCombustivelPrincipal?.(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-base font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="GNV">GNV (Gás Natural Veicular)</option>
+                  <option value="Gasolina">Gasolina</option>
+                  <option value="Etanol">Etanol</option>
+                  <option value="Diesel">Diesel</option>
+                </select>
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <ChevronDown size={18} />
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 ml-1 italic">
+                * O campo "Km Atual" nos formulários de abastecimento só será habilitado e obrigatório para este combustível.
               </p>
             </div>
 

@@ -193,8 +193,8 @@ async function startServer() {
       fallthrough: false // If an asset is missing, don't fall through to index.html
     }));
 
-    // Prevent caching for service worker files and manifest so updates apply
-    app.use(['/sw.js', '/registerSW.js', '/manifest.webmanifest'], (req, res, next) => {
+    // Prevent caching for index.html, service worker files and manifest so updates apply
+    app.use(['/', '/index.html', '/sw.js', '/registerSW.js', '/manifest.webmanifest'], (req, res, next) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       next();
     });
@@ -204,6 +204,7 @@ async function startServer() {
     app.get('*', (req, res) => {
       // For SPA, serve index.html for any non-file request
       if (req.accepts('html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.sendFile(path.join(distPath, 'index.html'));
       } else {
         res.status(404).send('Not found');

@@ -34,6 +34,7 @@ export interface Entry {
   posto?: string;
   bandeiraPosto?: string;
   combustivel?: string;
+  combustivelPrincipal?: string;
   quantidade?: number;
   valorUnitario?: number;
   tanqueVazio?: boolean;
@@ -115,6 +116,7 @@ export interface AppState {
   refundCategories: Category[];
   currentKm: number;
   targetKm: number;
+  combustivelPrincipal?: string;
   maintenanceIntervals: MaintenanceInterval[];
   trialStartDate?: string;
   appSheetMapping?: AppSheetMapping;

@@ -26,7 +26,16 @@
     <meta property="twitter:description" content="A ferramenta definitiva de gestão financeira para motoristas de aplicativo. Controle seu lucro real, metas diárias e manutenções." />
     <meta property="twitter:image" content="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=1200&h=630&auto=format&fit=crop" />
 
-    <!-- PWA Support -->
+    <!-- PWA Support & Cache Invalidation -->
+    <script>
+      (function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var r of regs) r.unregister();
+          });
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root">
