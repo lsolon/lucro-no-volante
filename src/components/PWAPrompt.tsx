@@ -3,28 +3,24 @@ import { useEffect, useState } from 'react';
 import { registerSW } from 'virtual:pwa-register';
 
 export default function PWAPrompt() {
-  const [needRefresh, setNeedRefresh] = useState(false);
-  const [updateServiceWorker, setUpdateServiceWorker] = useState<((reloadPage?: boolean) => Promise<void>) | null>(null);
-
   useEffect(() => {
-    const update = registerSW({
-      onNeedRefresh() {
-        setNeedRefresh(true);
-      },
-      onOfflineReady() {
-        console.log('App pronto para uso offline');
-      },
-    });
-    setUpdateServiceWorker(() => update);
-  }, []);
-
-  useEffect(() => {
-    if (needRefresh && updateServiceWorker) {
-      if (window.confirm('Nova versão disponível! Deseja atualizar agora?')) {
-        updateServiceWorker(true);
-      }
+    try {
+      const update = registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          console.log('Nova versão do PWA disponível. Atualizando automaticamente...');
+          if (typeof update === 'function') {
+            update(true);
+          }
+        },
+        onOfflineReady() {
+          console.log('App pronto para uso offline');
+        },
+      });
+    } catch (err) {
+      console.warn('Erro ao registrar SW:', err);
     }
-  }, [needRefresh, updateServiceWorker]);
+  }, []);
 
   return null;
 }

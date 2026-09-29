@@ -85,7 +85,7 @@ import MarketingFlyer from './components/MarketingFlyer';
 import ManualModal from './components/ManualModal';
 import SystemMaintenanceView from './components/SystemMaintenanceView';
 
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.1.7';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -143,6 +143,13 @@ export default function App() {
     console.log("App Initialization: Checking app version", { current: APP_VERSION, stored: lastVersion });
     if (lastVersion && lastVersion !== APP_VERSION) {
       console.log(`New version detected: ${APP_VERSION}. Clearing cache and reloading...`);
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
           for (let registration of registrations) {
