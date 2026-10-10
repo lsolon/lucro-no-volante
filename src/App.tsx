@@ -85,7 +85,7 @@ import MarketingFlyer from './components/MarketingFlyer';
 import ManualModal from './components/ManualModal';
 import SystemMaintenanceView from './components/SystemMaintenanceView';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);

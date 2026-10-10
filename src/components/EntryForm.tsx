@@ -26,7 +26,9 @@ import {
   Clock,
   Timer,
   Hash,
-  History
+  History,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -182,6 +184,7 @@ export default function EntryForm({
   const [isExtracting, setIsExtracting] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
   const months = useMemo(() => {
     const list = [];
@@ -416,16 +419,17 @@ export default function EntryForm({
   };
 
   const applyExtractedData = (data: any) => {
-    if (data.valorTotal) setValor(data.valorTotal.toString());
-    if (data.valorUnitario) setValorUnitario(data.valorUnitario.toString());
-    if (data.quantidade) setQuantidade(data.quantidade.toString());
-    if (data.combustivel) {
+    if (data.valorTotal && Number(data.valorTotal) > 0) setValor(data.valorTotal.toString());
+    if (isAbastecimento && data.valorUnitario && Number(data.valorUnitario) > 0) setValorUnitario(data.valorUnitario.toString());
+    if (isAbastecimento && data.quantidade && Number(data.quantidade) > 0) setQuantidade(data.quantidade.toString());
+    if (isAbastecimento && data.combustivel) {
       const normalized = data.combustivel.toLowerCase();
       if (normalized.includes('gasolina')) setCombustivel('Gasolina');
       else if (normalized.includes('etanol') || normalized.includes('alcool')) setCombustivel('Etanol');
       else if (normalized.includes('gnv')) setCombustivel('GNV');
+      else if (normalized.includes('diesel')) setCombustivel('Diesel');
     }
-    if (data.posto) {
+    if (isAbastecimento && data.posto) {
       const found = GAS_STATIONS.find(p => data.posto.toLowerCase().includes(p.toLowerCase()));
       if (found) setBandeiraPosto(found);
     }
@@ -1312,39 +1316,41 @@ export default function EntryForm({
             </div>
           </div>
 
-          {/* Campo informando qual o combustível principal do veículo */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between ml-1">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
-                <Fuel size={14} className="text-blue-600" />
-                Combustível Principal do Veículo
-              </label>
-              <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md border border-blue-100">
-                Odômetro Vinculado
-              </span>
-            </div>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600">
-                <Fuel size={18} />
+          {/* Campo informando qual o combustível principal do veículo (apenas em abastecimento) */}
+          {isAbastecimento && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                  <Fuel size={14} className="text-blue-600" />
+                  Combustível Principal do Veículo
+                </label>
+                <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md border border-blue-100">
+                  Odômetro Vinculado
+                </span>
               </div>
-              <select
-                value={principalFuel}
-                onChange={(e) => handlePrincipalFuelChange(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-              >
-                <option value="GNV">GNV (Gás Natural Veicular)</option>
-                <option value="Gasolina">Gasolina</option>
-                <option value="Etanol">Etanol</option>
-                <option value="Diesel">Diesel</option>
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <ChevronDown size={18} />
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600">
+                  <Fuel size={18} />
+                </div>
+                <select
+                  value={principalFuel}
+                  onChange={(e) => handlePrincipalFuelChange(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="GNV">GNV (Gás Natural Veicular)</option>
+                  <option value="Gasolina">Gasolina</option>
+                  <option value="Etanol">Etanol</option>
+                  <option value="Diesel">Diesel</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronDown size={18} />
+                </div>
               </div>
+              <p className="text-[10px] text-slate-400 ml-1 font-medium">
+                * O campo "Km Atual" nos abastecimentos fica habilitado e obrigatório apenas para o <strong>{principalFuel}</strong>.
+              </p>
             </div>
-            <p className="text-[10px] text-slate-400 ml-1 font-medium">
-              * O campo "Km Atual" nos abastecimentos fica habilitado e obrigatório apenas para o <strong>{principalFuel}</strong>.
-            </p>
-          </div>
+          )}
 
           <InputGroup 
             label="Valor Total da Despesa" 
@@ -1557,6 +1563,45 @@ export default function EntryForm({
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* Seção de Comprovante & Nota Fiscal para todas as despesas (Troca de Óleo, Abastecimento, Manutenção, etc.) */}
+          {tipo === 'Despesa' && (
+            <div className="space-y-4 pt-6 border-t border-slate-100">
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                  <FileText size={14} className={isTrocaOleo ? "text-amber-600" : (isAbastecimento ? "text-blue-600" : "text-slate-600")} />
+                  {isTrocaOleo 
+                    ? "Nota Fiscal / Comprovante da Troca de Óleo" 
+                    : isAbastecimento 
+                    ? "Nota Fiscal do Abastecimento" 
+                    : "Nota Fiscal / Comprovante"}
+                </label>
+                {isTrocaOleo && (
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-amber-50 text-amber-800 rounded-md border border-amber-200">
+                    Recomendado para Garantia
+                  </span>
+                )}
+              </div>
+
+              {isTrocaOleo && (
+                <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-xs text-amber-900 shadow-sm">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 shadow-sm mt-0.5">
+                    <FileText size={16} />
+                  </div>
+                  <div className="space-y-1">
+                    <h5 className="font-black text-amber-950 uppercase tracking-wider text-[11px]">
+                      Garantia do Motor & Histórico da Revisão
+                    </h5>
+                    <p className="text-amber-900/90 leading-relaxed font-medium">
+                      Anexe a foto da nota fiscal ou escaneie o QR Code. Isso comprova as especificações do óleo, os filtros trocados e a garantia dos serviços mecânicos.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Botões para anexar / escanear */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -1597,15 +1642,26 @@ export default function EntryForm({
                     )}
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isExtracting || !!qrCodeData}
-                    className={`col-span-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold transition-all ${qrCodeData ? 'bg-slate-100/50 text-slate-400 cursor-not-allowed' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50'}`}
-                  >
-                    <Camera size={16} />
-                    {qrCodeData ? 'Foto Desabilitada (QR Code Lido)' : 'Anexar Foto da Nota'}
-                  </button>
+                  <div className="col-span-2 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isExtracting || !!qrCodeData}
+                      className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all ${qrCodeData ? 'bg-slate-100/50 text-slate-400 cursor-not-allowed' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50'}`}
+                    >
+                      <Camera size={16} />
+                      Tirar Foto da Nota
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => galleryFileInputRef.current?.click()}
+                      disabled={isExtracting || !!qrCodeData}
+                      className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all ${qrCodeData ? 'bg-slate-100/50 text-slate-400 cursor-not-allowed' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50'}`}
+                    >
+                      <ImageIcon size={16} />
+                      Foto da Galeria
+                    </button>
+                  </div>
                 )}
 
                 {linkNota && !isExtracting && (
@@ -1624,6 +1680,13 @@ export default function EntryForm({
                   onChange={handlePhotoCapture} 
                   accept="image/*" 
                   capture="environment" 
+                  className="hidden" 
+                />
+                <input 
+                  type="file" 
+                  ref={galleryFileInputRef} 
+                  onChange={handlePhotoCapture} 
+                  accept="image/*" 
                   className="hidden" 
                 />
                 <input 
@@ -1732,13 +1795,30 @@ export default function EntryForm({
               )}
 
               {photoUrl && (
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
-                  <img src={photoUrl} alt="Nota Fiscal" className="w-full h-full object-cover" />
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shrink-0 shadow-sm bg-white">
+                      <img src={photoUrl} alt="Nota Fiscal" className="w-full h-full object-cover" />
+                      <button 
+                        type="button"
+                        onClick={() => setPhotoUrl(null)}
+                        className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-black/80 transition-colors"
+                        title="Remover Foto"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-800">Comprovante Anexado</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Foto salva e vinculada a este registro.</p>
+                    </div>
+                  </div>
                   <button 
+                    type="button"
                     onClick={() => setPhotoUrl(null)}
-                    className="absolute top-1 right-1 bg-black/50 text-white p-0.5 rounded-full"
+                    className="text-xs font-bold text-rose-600 hover:text-rose-700 p-2"
                   >
-                    <X size={12} />
+                    Excluir
                   </button>
                 </div>
               )}

@@ -31,15 +31,15 @@ export async function extractInvoiceDataFromImage(base64Image: string): Promise<
     // Remove prefix if exists
     const base64Data = base64Image.split(',')[1] || base64Image;
 
-    const prompt = `Analise esta nota fiscal de combustível e extraia os seguintes dados em formato JSON:
-    - valorTotal (número)
-    - valorUnitario (número)
-    - quantidade (número de litros)
-    - combustivel (string: Gasolina, Etanol, GNV, Diesel, etc)
-    - posto (string: Nome do posto ou bandeira)
-    - data (string no formato YYYY-MM-DD)
+    const prompt = `Analise esta nota fiscal ou comprovante (seja de combustível, troca de óleo, manutenção preventiva, oficina mecânica ou despesa automotiva) e extraia os seguintes dados em formato JSON:
+    - valorTotal (número decimal com o valor total da despesa)
+    - valorUnitario (número decimal com valor unitário do combustível ou do item, ou 0 se não especificado)
+    - quantidade (número decimal com litros ou unidades trocadas, ou 0 se não especificado)
+    - combustivel (string: Gasolina, Etanol, GNV, Diesel se for combustível; ou "" caso seja troca de óleo/serviço)
+    - posto (string: Nome do posto de combustível, centro automotivo ou oficina)
+    - data (string no formato YYYY-MM-DD da data da compra/serviço)
 
-    Retorne apenas o JSON. Se não encontrar algum dado, use null ou 0.`;
+    Retorne apenas o JSON. Se não encontrar algum dado, use null, "" ou 0.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-1.5-flash",
@@ -88,18 +88,18 @@ export async function extractInvoiceDataFromText(text: string): Promise<InvoiceD
     const ai = getAI();
     if (!ai) throw new Error("AI não configurada. Por favor, adicione a GEMINI_API_KEY.");
 
-    const prompt = `Analise o texto abaixo de uma nota fiscal de combustível e extraia os seguintes dados em formato JSON:
-    - valorTotal (número)
-    - valorUnitario (número)
-    - quantidade (número de litros)
-    - combustivel (string: Gasolina, Etanol, GNV, Diesel, etc)
-    - posto (string: Nome do posto ou bandeira)
-    - data (string no formato YYYY-MM-DD)
+    const prompt = `Analise o texto abaixo de uma nota fiscal ou comprovante (combustível, troca de óleo, manutenção ou despesa automotiva) e extraia os seguintes dados em formato JSON:
+    - valorTotal (número decimal do valor total)
+    - valorUnitario (número decimal do valor unitário se houver, ou 0)
+    - quantidade (número decimal da quantidade se houver, ou 0)
+    - combustivel (string: Gasolina, Etanol, GNV, Diesel se for combustível; ou "" caso seja outro item)
+    - posto (string: Nome do posto ou oficina/estabelecimento)
+    - data (string no formato YYYY-MM-DD da emissão)
 
     Texto:
     ${text}
 
-    Retorne apenas o JSON.`;
+    Retorne apenas o JSON. Se não encontrar algum dado, use null, "" ou 0.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-1.5-flash",
