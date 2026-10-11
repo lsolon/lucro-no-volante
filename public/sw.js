@@ -1,21 +1,10 @@
-// Self-destroying service worker to purge stale caches and unregister
+// LucroNoVolante - PWA Service Worker Entry
+importScripts('/sw-custom.js');
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
-      .then(() => self.registration.unregister())
-      .then(() => self.clients.claim())
-      .then(() => {
-        return self.clients.matchAll({ type: 'window' }).then((clients) => {
-          clients.forEach((client) => {
-            if ('navigate' in client) {
-              client.navigate(client.url);
-            }
-          });
-        });
-      })
-  );
+  event.waitUntil(self.clients.claim());
 });

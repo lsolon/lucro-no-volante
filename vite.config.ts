@@ -23,6 +23,10 @@ export default defineConfig(({mode}) => {
           ],
           ignoreURLParametersMatching: [/^utm_/, /^fbclid$/],
         },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
         manifest: {
           name: 'Lucro no Volante',
           short_name: 'LucroVolante',

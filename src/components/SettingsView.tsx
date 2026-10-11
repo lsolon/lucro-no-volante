@@ -28,8 +28,10 @@ import {
   Trash,
   Sparkles,
   ChevronRight,
-  Coins
+  Coins,
+  Bell
 } from 'lucide-react';
+import PWANotificationSettings from './PWANotificationSettings';
 import * as XLSX from 'xlsx';
 import { format, addMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -106,7 +108,7 @@ export default function SettingsView({
   isAIVideoStudioOpen,
   setIsAIVideoStudioOpen
 }: SettingsViewProps) {
-  const [activeSection, setActiveSection] = useState<'fixed' | 'expenses' | 'earnings' | 'data' | 'general' | 'share' | 'admin'>('general');
+  const [activeSection, setActiveSection] = useState<'fixed' | 'expenses' | 'earnings' | 'data' | 'general' | 'share' | 'admin' | 'notifications'>('general');
   const [importStatus, setImportStatus] = useState<{ success?: boolean; message?: string } | null>(null);
   const [pendingImport, setPendingImport] = useState<Entry[] | null>(null);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
@@ -677,6 +679,20 @@ export default function SettingsView({
           <Settings size={18} />
           Geral
         </button>
+        <button
+          onClick={() => {
+            setActiveSection('notifications');
+            setImportStatus(null);
+            setPendingImport(null);
+          }}
+          className={cn(
+            "flex-1 min-w-fit flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold transition-all whitespace-nowrap",
+            activeSection === 'notifications' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"
+          )}
+        >
+          <Bell size={18} />
+          Notificações
+        </button>
         {isAdmin && (
           <button
             onClick={() => {
@@ -768,6 +784,7 @@ export default function SettingsView({
       {activeSection === 'general' && (
         <div className="space-y-4">
           <PWAInstallButton />
+          <PWANotificationSettings />
           
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
             <div className="flex items-center gap-3 mb-2">
@@ -1005,6 +1022,10 @@ export default function SettingsView({
             
           </div>
         </div>
+      )}
+
+      {activeSection === 'notifications' && (
+        <PWANotificationSettings />
       )}
 
       {activeSection === 'fixed' && (

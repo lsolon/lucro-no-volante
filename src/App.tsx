@@ -84,8 +84,9 @@ import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 import ManualModal from './components/ManualModal';
 import SystemMaintenanceView from './components/SystemMaintenanceView';
+import { checkAndNotifyDailyGoal, checkAndNotifyMaintenance } from './services/notificationService';
 
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.3.0';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -692,6 +693,66 @@ export default function App() {
     }
     return maxKm;
   }, [state.currentKm, state.entries]);
+
+  // Handle PWA notification click routing (switching tab)
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const handleSwMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'NAVIGATE_TAB' && event.data.tab) {
+          setActiveTab(event.data.tab);
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+      
+      const handleCustomNav = (e: any) => {
+        if (e.detail?.tab) setActiveTab(e.detail.tab);
+      };
+      window.addEventListener('lucro:navigate-tab', handleCustomNav);
+
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+        window.removeEventListener('lucro:navigate-tab', handleCustomNav);
+      };
+    }
+  }, []);
+
+  // Monitor and trigger PWA Push Notifications for daily goals & maintenance alerts
+  useEffect(() => {
+    if (!user || !state.isConfigLoaded) return;
+
+    // 1. Meta Diária: Custo Fixo Diário + Despesas de Hoje + 10% de margem
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dailyFixed = totals.totalFixedCosts / daysInMonth;
+    const dailyTarget = (dailyFixed + totals.todayExpenses) * 1.1;
+
+    if (dailyTarget > 0 && totals.todayEarnings > 0) {
+      checkAndNotifyDailyGoal(totals.todayEarnings, dailyTarget).catch(err => {
+        console.warn('Erro ao verificar notificação de meta:', err);
+      });
+    }
+
+    // 2. Manutenções Preventivas e Troca de Óleo
+    if (lastRecordedKm > 0 && state.maintenanceIntervals) {
+      checkAndNotifyMaintenance(
+        lastRecordedKm,
+        state.maintenanceIntervals,
+        state.entries,
+        state.categories
+      ).catch(err => {
+        console.warn('Erro ao verificar notificação de manutenção:', err);
+      });
+    }
+  }, [
+    user,
+    state.isConfigLoaded,
+    totals.todayEarnings,
+    totals.todayExpenses,
+    totals.totalFixedCosts,
+    lastRecordedKm,
+    state.entries.length,
+    state.maintenanceIntervals
+  ]);
 
   const handleAddEntry = async (entryData: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => {
     if (!user) return;
@@ -1312,6 +1373,7 @@ export default function App() {
           <AIVideoStudio key="ai-video-studio" onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
         <ManualModal key="manual-modal" isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
+        <PWAPrompt key="pwa-prompt" />
         {isEntryModalOpen && (
           <div key="entry-modal-container" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
