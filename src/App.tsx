@@ -491,7 +491,14 @@ export default function App() {
         console.log("Login cancelado pelo usuário (popup fechado).");
         setAuthError("O login foi cancelado ou o popup foi fechado. Tente novamente ou abra o app em uma nova aba se o problema persistir.");
       } else if (error.code === 'auth/popup-blocked') {
-        setAuthError("O popup de login foi bloqueado pelo seu navegador. Por favor, permita popups para este site.");
+        console.log("Popup bloqueado, tentando login com redirecionamento...");
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError: any) {
+          console.error("Erro ao tentar redirecionamento de login:", redirectError);
+          setAuthError("O popup de login foi bloqueado e o redirecionamento falhou. Por favor, permita popups para este site ou abra o app em uma nova aba.");
+        }
       } else if (error.code === 'auth/unauthorized-domain') {
         setAuthError("Este domínio não está autorizado no Firebase Authentication. Por favor, adicione-o aos 'Domínios Autorizados' no console do Firebase.");
       } else if (error.code === 'auth/operation-not-allowed') {

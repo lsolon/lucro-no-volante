@@ -32,22 +32,43 @@ export function PolicyModal({ isOpen, onClose, type }: PolicyModalProps) {
             <div className="border-t-4 border-blue-600 pt-6">
               {type === 'privacy' ? (
                 <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
-                  <p><strong>1. Introdução</strong></p>
-                  <p>No LucroNoVolante, levamos a sério a sua privacidade e os seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).</p>
-                  <p><strong>2. Dados Coletados</strong></p>
-                  <p>Coletamos apenas o estritamente necessário para o funcionamento do app: e-mail (via autenticação Google), dados de entradas financeiras (registrados por você), e informações de localização quando utilizadas.</p>
-                  <p><strong>3. Finalidade</strong></p>
-                  <p>Os dados são utilizados para oferecer as funcionalidades do app (gestão financeira, relatórios) e não são compartilhados com terceiros para fins de marketing sem sua autorização explícita.</p>
-                  <p><strong>4. Seus Direitos</strong></p>
-                  <p>A qualquer momento você pode solicitar o acesso, retificação ou exclusão de seus dados entrando em contato conosco.</p>
-                  <p className="text-xs pt-4 border-t"><em>[Nota: Esta é uma política simplificada. Para aplicações reais onde dados sensíveis são processados ou compartilhados com terceiros, consulte um advogado para elaborar uma política completa.]</em></p>
+                  <p><strong>1. Introdução e Conformidade LGPD</strong></p>
+                  <p>No LucroNoVolante, levamos a sério a sua privacidade e a segurança dos seus dados pessoais, em estrita conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).</p>
+                  
+                  <p><strong>2. Armazenamento Seguro na Nuvem (Firebase / Google Cloud)</strong></p>
+                  <p>Os seus registros financeiros, metas e informações de perfil são armazenados com segurança e criptografia na infraestrutura do Firebase (Google Cloud), garantindo proteção, integridade e alta disponibilidade dos dados.</p>
+                  
+                  <p><strong>3. Processamento de Pagamentos (Mercado Pago)</strong></p>
+                  <p>Todas as transações e assinaturas são processadas com segurança pela plataforma do Mercado Pago. O LucroNoVolante não tem acesso e não armazena números de cartões de crédito ou dados bancários sensíveis.</p>
+                  
+                  <p><strong>4. Uso de Localização Geográfica</strong></p>
+                  <p>A permissão de localização (GPS) é opcional e utilizada exclusivamente para a marcação de postos e consulta de preços no Mapa de Combustível. Não realizamos rastreamento contínuo em segundo plano e não compartilhamos sua localização com terceiros.</p>
+                  
+                  <p><strong>5. Seus Direitos e Exclusão de Dados</strong></p>
+                  <p>Você é o único titular de suas informações. A qualquer momento, você pode solicitar a consulta, retificação, exportação ou exclusão definitiva de sua conta e de todos os dados armazenados enviando uma mensagem para <strong>contato@routinetech.com.br</strong>.</p>
                 </div>
               ) : (
                 <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
-                  <p><strong>1. Aceitação</strong></p>
-                  <p>Ao utilizar o LucroNoVolante, você concorda com estes termos.</p>
-                  <p><strong>2. Uso Responsável</strong></p>
-                  <p>O app é destinado à organização financeira pessoal de motoristas e você é responsável pela veracidade dos dados inseridos.</p>
+                  <p><strong>1. Aceitação dos Termos</strong></p>
+                  <p>Ao utilizar o aplicativo LucroNoVolante, você declara estar de acordo com estes Termos de Uso.</p>
+                  
+                  <p><strong>2. Assinatura Anual e Valores</strong></p>
+                  <p>O aplicativo opera no modelo de assinatura anual no valor de R$ 97,00 (equivalente a cerca de R$ 8,08/mês), oferecendo período de teste gratuito de 30 dias para novos usuários.</p>
+                  
+                  <p><strong>3. Cancelamento a Qualquer Momento</strong></p>
+                  <p>Você pode cancelar sua assinatura a qualquer momento diretamente pelo app ou pelo suporte, sem multas, carências ou taxas de rescisão.</p>
+                  
+                  <p><strong>4. Direito de Arrependimento de 7 Dias (Art. 49 do CDC)</strong></p>
+                  <p>Em conformidade com o artigo 49 do Código de Defesa do Consumidor (Lei nº 8.078/1990), você tem até 7 (sete) dias corridos após a contratação para exercer o direito de arrependimento, com reembolso integral de quaisquer valores eventualmente pagos.</p>
+                  
+                  <p><strong>5. Processamento Seguro pelo Mercado Pago</strong></p>
+                  <p>Todos os pagamentos e renovações são processados pela plataforma parceira Mercado Pago, garantindo conformidade e segurança bancária.</p>
+                  
+                  <p><strong>6. Limitação de Responsabilidade</strong></p>
+                  <p>O LucroNoVolante é uma ferramenta tecnológica de organização, cálculo e gestão financeira pessoal. O aplicativo não presta serviços de consultoria contábil, fiscal ou tributária e não substitui o trabalho ou aconselhamento de um contador profissional.</p>
+                  
+                  <p><strong>7. Contato e Atendimento</strong></p>
+                  <p>Para suporte, dúvidas, cancelamentos ou solicitações sobre estes termos, entre em contato pelo e-mail <strong>contato@routinetech.com.br</strong> (App Routine Tech).</p>
                 </div>
               )}
             </div>

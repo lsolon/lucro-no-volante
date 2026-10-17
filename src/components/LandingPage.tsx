@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Share2,
   Smartphone,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -59,22 +60,22 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-100 selection:text-blue-700">
       {/* Navigation */}
       <nav className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
-        scrolled ? "bg-white/80 backdrop-blur-md border-b border-slate-100 py-3" : "bg-transparent"
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-4 sm:px-6 py-3 sm:py-4",
+        scrolled ? "bg-white/80 backdrop-blur-md border-b border-slate-100 py-2.5 sm:py-3" : "bg-transparent"
       )}>
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
+        <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <img 
               src="https://i.postimg.cc/XY3C4qHn/Designer.jpg" 
               alt="Logo" 
-              className="size-10 rounded-lg shadow-lg"
+              className="size-8 sm:size-10 rounded-lg shadow-md shrink-0"
               referrerPolicy="no-referrer"
             />
-            <span className="font-black text-xl tracking-tighter text-slate-800">LucroNoVolante</span>
+            <span className="font-black text-base sm:text-xl tracking-tight text-slate-800 truncate">LucroNoVolante</span>
           </div>
           <button 
             onClick={onLogin}
-            className="bg-slate-900 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+            className="bg-slate-900 text-white px-3.5 sm:px-6 py-2 sm:py-2.5 rounded-full font-bold text-xs sm:text-sm hover:bg-slate-800 transition-all active:scale-95 shadow-md shadow-slate-200 shrink-0 whitespace-nowrap"
           >
             Entrar no App
           </button>
@@ -91,7 +92,7 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
           >
             <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-6">
               <Zap size={14} />
-              O App nº 1 para Motoristas de App
+              Feito para motoristas de app, táxi e entregadores
             </div>
             <h1 className="text-5xl lg:text-7xl font-black text-slate-900 leading-[1.1] tracking-tighter mb-6">
               Pare de apenas dirigir. <br />
@@ -142,13 +143,104 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
             className="relative"
           >
             <div className="absolute -inset-4 bg-blue-600/5 rounded-[40px] blur-3xl" />
-            <div className="relative bg-slate-900 rounded-[40px] p-4 shadow-2xl border border-slate-800">
-              <img 
-                src="https://picsum.photos/seed/app-preview/800/1200" 
-                alt="App Preview" 
-                className="rounded-[32px] w-full h-auto"
-                referrerPolicy="no-referrer"
-              />
+            <div className="relative bg-slate-900 rounded-[44px] p-3 sm:p-4 shadow-2xl border-4 border-slate-800 max-w-sm mx-auto">
+              {/* Speaker / Camera Notch */}
+              <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-3.5 bg-slate-950 rounded-full z-20 flex items-center justify-center">
+                <div className="size-1.5 rounded-full bg-slate-800 mr-2" />
+                <div className="w-6 h-1 rounded-full bg-slate-800" />
+              </div>
+
+              {/* Screen Mockup */}
+              <div className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-[32px] p-3.5 pt-9 text-white overflow-hidden shadow-inner border border-slate-800/80 space-y-3">
+                {/* Header Mock */}
+                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="size-6 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
+                      <Car size={14} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="font-black text-xs text-white leading-none">LucroNoVolante</p>
+                      <p className="text-[9px] text-slate-400 font-bold">Painel de Hoje</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Ao Vivo
+                  </span>
+                </div>
+
+                {/* Cards Ganho Bruto e Custos */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-2.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ganho bruto</span>
+                      <TrendingUp size={12} className="text-blue-400" />
+                    </div>
+                    <p className="text-base font-black text-white">R$ 412,00</p>
+                    <p className="text-[8px] text-slate-400 font-medium">Uber · 99 · InDrive</p>
+                  </div>
+
+                  <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-2.5">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Custos</span>
+                      <Fuel size={12} className="text-amber-400" />
+                    </div>
+                    <p className="text-base font-black text-white">R$ 138,50</p>
+                    <p className="text-[8px] text-slate-400 font-medium">Combustível + Rua</p>
+                  </div>
+                </div>
+
+                {/* Card Lucro Real (Destaque em Verde) */}
+                <div className="bg-gradient-to-br from-emerald-500/20 via-emerald-600/30 to-teal-500/10 border-2 border-emerald-400/60 rounded-2xl p-3.5 shadow-lg shadow-emerald-950/40 relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Lucro real</span>
+                    </div>
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 uppercase tracking-wider">Líquido</span>
+                  </div>
+                  <p className="text-3xl font-black text-emerald-300 tracking-tight">R$ 273,50</p>
+                  <p className="text-[9px] text-emerald-200/80 font-medium mt-0.5">
+                    Total limpo no bolso descontando todos os custos.
+                  </p>
+                </div>
+
+                {/* Barra de Progresso Meta do Dia 78% */}
+                <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Target size={13} className="text-blue-400" />
+                      <span className="text-[10px] font-bold text-slate-200">Meta do dia</span>
+                    </div>
+                    <span className="text-xs font-black text-blue-400">78%</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-800">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full shadow-sm"
+                      style={{ width: '78%' }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[8px] text-slate-400 font-medium">
+                    <span>Faltam R$ 78,00 para bater a meta</span>
+                    <span>Meta: R$ 350,00</span>
+                  </div>
+                </div>
+
+                {/* Mini Bottom Nav Mock */}
+                <div className="pt-2 border-t border-slate-800/60 flex justify-around items-center text-slate-500 text-[9px] font-bold">
+                  <div className="flex flex-col items-center gap-0.5 text-blue-400">
+                    <BarChart3 size={13} />
+                    <span>Painel</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <Fuel size={13} />
+                    <span>Postos</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <Settings size={13} />
+                    <span>Revisão</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -174,8 +266,7 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
               <div className="flex-grow">
                 <h3 className="text-2xl font-black mb-2 tracking-tight">Facilite seu Imposto de Renda</h3>
                 <p className="text-purple-100 leading-relaxed font-medium text-lg mb-4">
-                  Armazene fotos das suas notas fiscais de despesas diretamente no app. 
-                  Mantenha tudo organizado para comprovação e simplifique sua declaração anual.
+                  Guarde fotos das notas e comprovantes no app e tenha seus números organizados para o carnê-leão e a declaração anual.
                 </p>
                 <button 
                   onClick={() => setShowTaxExample(true)}
@@ -196,26 +287,53 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
                 >
                   <h3 className="text-2xl font-black mb-4">Exemplo de Uso e Impostos</h3>
                   <div className="space-y-4 text-slate-600">
-                    <p>Veja como você organiza suas despesas:</p>
-                    <div className="bg-slate-100 p-4 rounded-2xl font-mono text-xs">
-                      [Image: Nota Fiscal posto de gasolina] <br/>
-                      Data: 20/04/2026 <br/>
-                      Valor: R$ 150,00 <br/>
-                      Categoria: Combustível
+                    <p className="text-sm font-medium">Veja como você organiza suas despesas e comprovantes:</p>
+                    
+                    {/* Card de Nota Fiscal desenhado em JSX */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
+                            <FileText size={18} />
+                          </div>
+                          <div>
+                            <p className="font-black text-xs text-slate-900">DANFE NFC-e · Posto Exemplo</p>
+                            <p className="text-[10px] text-slate-400 font-medium">Comprovante de Abastecimento</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Nota Anexada
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Data</p>
+                          <p className="font-bold text-slate-800">20/04/2026</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Categoria</p>
+                          <p className="font-bold text-slate-800">Combustível</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor</p>
+                          <p className="font-black text-slate-900 text-sm">R$ 150,00</p>
+                        </div>
+                      </div>
                     </div>
+
                     <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                      <p className="font-bold text-blue-900 flex items-center gap-2 mb-2">
-                        <Car className="size-5" /> Regra especial:
+                      <p className="font-bold text-blue-900 flex items-center gap-2 mb-2 text-sm">
+                        <Car className="size-5 shrink-0" /> Regra especial:
                       </p>
-                      <p className="text-sm">
-                        Segundo a legislação, você só paga imposto sobre <strong>60% do que recebeu</strong>. 
-                        Os outros <strong>40% não são tributados</strong>.
+                      <p className="text-xs sm:text-sm text-blue-900 leading-relaxed font-medium">
+                        Para o IR, a Receita considera tributável 60% do valor bruto no transporte de passageiros (Uber, 99, táxi) e 10% no transporte de cargas e entregas. Confirme sempre com seu contador.
                       </p>
                     </div>
                   </div>
                   <button 
                     onClick={() => setShowTaxExample(false)}
-                    className="w-full bg-blue-600 text-white rounded-full py-3 font-bold"
+                    className="w-full mt-6 bg-blue-600 text-white rounded-full py-3 font-bold hover:bg-blue-700 transition-colors"
                   >
                     Entendido
                   </button>
@@ -272,18 +390,18 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
           
           <div className="relative z-10">
             <h2 className="text-4xl font-black mb-12 tracking-tight">O motorista que se organiza, lucra mais.</h2>
-            <div className="grid sm:grid-cols-3 gap-8 mb-12">
-              <div>
-                <p className="text-5xl font-black mb-2">30%</p>
-                <p className="text-sm font-bold uppercase tracking-widest opacity-80">Aumento Médio no Lucro</p>
+            <div className="grid sm:grid-cols-3 gap-6 sm:gap-8 mb-12">
+              <div className="bg-white/10 backdrop-blur-sm p-6 rounded-3xl border border-white/10">
+                <p className="text-3xl sm:text-4xl font-black mb-1">30 dias grátis</p>
+                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Acesso completo para testar</p>
               </div>
-              <div>
-                <p className="text-5xl font-black mb-2">500+</p>
-                <p className="text-sm font-bold uppercase tracking-widest opacity-80">Motoristas Ativos</p>
+              <div className="bg-white/10 backdrop-blur-sm p-6 rounded-3xl border border-white/10">
+                <p className="text-3xl sm:text-4xl font-black mb-1">R$ 8/mês</p>
+                <p className="text-xs font-bold uppercase tracking-widest opacity-80">No plano anual (R$ 97/ano)</p>
               </div>
-              <div>
-                <p className="text-5xl font-black mb-2">R$ 0</p>
-                <p className="text-sm font-bold uppercase tracking-widest opacity-80">Custo Inicial</p>
+              <div className="bg-white/10 backdrop-blur-sm p-6 rounded-3xl border border-white/10">
+                <p className="text-3xl sm:text-4xl font-black mb-1">Uber, 99 e InDrive</p>
+                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Multiplataforma integrado</p>
               </div>
             </div>
             <button 
@@ -309,9 +427,14 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
             />
             <span className="font-black text-lg tracking-tighter text-slate-800">LucroNoVolante</span>
           </div>
-          <p className="text-slate-400 text-sm font-medium">
-            © 2026 LucroNoVolante. Todos os direitos reservados.
-          </p>
+          <div className="text-center md:text-left">
+            <p className="text-slate-400 text-sm font-medium">
+              © 2026 LucroNoVolante. Todos os direitos reservados.
+            </p>
+            <p className="text-slate-500 text-xs font-medium mt-1">
+              App Routine Tech · <a href="mailto:contato@routinetech.com.br" className="underline hover:text-blue-600 transition-colors">contato@routinetech.com.br</a>
+            </p>
+          </div>
           <div className="flex gap-6">
             <button onClick={() => setModalType('terms')} className="text-slate-400 hover:text-slate-600 text-sm font-bold uppercase tracking-widest">Termos</button>
             <button onClick={() => setModalType('privacy')} className="text-slate-400 hover:text-slate-600 text-sm font-bold uppercase tracking-widest">Privacidade</button>
