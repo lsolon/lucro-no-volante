@@ -28,8 +28,9 @@ export default defineConfig(({mode}) => {
           type: 'module',
         },
         manifest: {
-          name: 'Lucro no Volante',
-          short_name: 'LucroVolante',
+          lang: 'pt-BR',
+          name: 'LucroNoVolante - Gestão Financeira para Motoristas',
+          short_name: 'LucroNoVolante',
           description: 'Controle de ganhos e gastos para motoristas de aplicativo',
           theme_color: '#000000',
           background_color: '#ffffff',
