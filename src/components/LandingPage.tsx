@@ -66,10 +66,9 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
         <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <img 
-              src="https://i.postimg.cc/XY3C4qHn/Designer.jpg" 
+              src="/logo.webp" 
               alt="Logo" 
               className="size-8 sm:size-10 rounded-lg shadow-md shrink-0"
-              referrerPolicy="no-referrer"
             />
             <span className="font-black text-base sm:text-xl tracking-tight text-slate-800 truncate">LucroNoVolante</span>
           </div>
@@ -420,10 +419,9 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
             <img 
-              src="https://i.postimg.cc/XY3C4qHn/Designer.jpg" 
+              src="/logo.webp" 
               alt="Logo" 
               className="size-8 rounded-lg"
-              referrerPolicy="no-referrer"
             />
             <span className="font-black text-lg tracking-tighter text-slate-800">LucroNoVolante</span>
           </div>

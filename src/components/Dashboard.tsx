@@ -747,10 +747,9 @@ export default function Dashboard({
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-transparent rounded-2xl">
                 <img 
-                  src="https://i.postimg.cc/XY3C4qHn/Designer.jpg" 
+                  src="/logo.webp" 
                   alt="Logo" 
                   className="size-6 rounded-lg"
-                  referrerPolicy="no-referrer"
                 />
               </div>
               <h3 className="font-bold text-white">Meta de Kilometragem</h3>
