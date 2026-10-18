@@ -27,21 +27,20 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          script: |
-            # 1. Entra na pasta do projeto
+                    script: |
+            set -e
             cd /home/ubuntu/lucronovolante
-            
-            # 2. Cria o arquivo .env com suas variáveis de ambiente do GitHub Secrets
+
             echo "VITE_APPSHEET_APP_ID=${{ secrets.VITE_APPSHEET_APP_ID }}" > .env
             echo "VITE_APPSHEET_ACCESS_KEY=${{ secrets.VITE_APPSHEET_ACCESS_KEY }}" >> .env
             echo "VITE_APPSHEET_TABLE_NAME=${{ secrets.VITE_APPSHEET_TABLE_NAME }}" >> .env
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
-            
-            # 3. Instala as dependências do Node
+
             npm install
-            
-            # 4. Faz o build da aplicação
             npm run build
-            
-            # 5. Usa o PM2 para iniciar ou reiniciar o servidor em segundo plano
-            pm2 restart lucronovolante || pm2 start npm --name "lucronovolante" -- run preview
+
+            echo "=== Build OK - commit ${{ github.sha }} - $(date) ==="
+            ls -la --time-style=long-iso dist/index.html
+
+            pm2 restart lucronovolante --update-env || pm2 start npm --name "lucronovolante" -- run preview
+            pm2 save
