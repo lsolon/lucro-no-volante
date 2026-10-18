@@ -48,7 +48,7 @@ const steps = [
   },
   {
     title: "Controle de Manutenção",
-    description: "Cadastre seus itens de revisão e nós te avisaremos quando estiver chegando a hora de trocar o óleo, pneus ou correia, baseando-se na sua kilometragem.",
+    description: "Cadastre seus itens de revisão e nós te avisaremos quando estiver chegando a hora de trocar o óleo, pneus ou correia, baseando-se na sua quilometragem.",
     icon: <Fuel className="text-rose-600 size-12" />,
     color: "bg-rose-50"
   },

@@ -36,7 +36,7 @@ import { format, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { cn, compressImage, parseEntryDate, parseTimeToMinutes, formatMinutesToDisplay, formatTimeToHHMM, maskTimeInput } from '../lib/utils';
+import { cn, compressImage, parseEntryDate, parseTimeToMinutes, formatMinutesToDisplay, formatTimeToHHMM, maskTimeInput, formatDateBR } from '../lib/utils';
 import { Entry, EntryType, Category, FixedCost, PlatformEarningDetail } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { GAS_STATIONS } from '../constants';
@@ -739,6 +739,8 @@ export default function EntryForm({
   }, [isTrocaOleo, km]);
 
   const [formError, setFormError] = useState<string | null>(null);
+  const [kmWarning, setKmWarning] = useState<number | null>(null);
+  const kmWarningAckRef = useRef(false);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -762,6 +764,21 @@ export default function EntryForm({
       setFormError('Por favor, selecione uma data.');
       return;
     }
+
+    // Aviso quando o KM digitado é menor que o maior KM já registrado até essa data
+    if (!isKmDisabled && isKmTyped && !kmWarningAckRef.current) {
+      const typedKm = Number(km.toString().replace(',', '.'));
+      const prevMaxKm = (entries || [])
+        .filter(e => e.id !== initialData?.id && typeof e.km === 'number' && e.km > 0 && String(e.data).replace(/\//g, '-') <= data)
+        .reduce((mx, e) => Math.max(mx, Number(e.km)), 0);
+      if (!isNaN(typedKm) && prevMaxKm > 0 && typedKm < prevMaxKm) {
+        setKmWarning(prevMaxKm);
+        setTimeout(() => document.getElementById('km-warning')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+        return;
+      }
+    }
+    kmWarningAckRef.current = false;
+    setKmWarning(null);
 
     let entryValor = 0;
     const numericGanhos: Record<string, number> = {};
@@ -1034,6 +1051,19 @@ export default function EntryForm({
         <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
           <AlertCircle className="text-rose-600 size-5 shrink-0" />
           <p className="text-sm font-bold text-rose-700">{formError}</p>
+        </div>
+      )}
+
+      {kmWarning !== null && (
+        <div id="km-warning" className="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-amber-600 size-5 shrink-0" />
+            <p className="text-sm font-bold text-amber-800">Esse KM é menor que o último registrado ({kmWarning.toLocaleString('pt-BR')} km). Confira se digitou certo.</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setKmWarning(null)} className="flex-1 bg-white border border-amber-300 text-amber-800 rounded-xl py-3 text-sm font-bold">Corrigir</button>
+            <button type="button" onClick={(ev) => { kmWarningAckRef.current = true; setKmWarning(null); ev.currentTarget.form?.requestSubmit(); }} className="flex-1 bg-amber-600 text-white rounded-xl py-3 text-sm font-bold">Salvar assim mesmo</button>
+          </div>
         </div>
       )}
 
@@ -1942,7 +1972,7 @@ export default function EntryForm({
                     ? '📊 1. Ciclo Completo (1º ao atual)'
                     : '⚡ 2. Ciclo Mais Recente (Últimos 2)'}
                 </span>
-                <span>{activePreview.startDate} ➔ {activePreview.endDate}</span>
+                <span>{formatDateBR(activePreview.startDate)} ➔ {formatDateBR(activePreview.endDate)}</span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 bg-black/15 p-3 rounded-xl border border-white/10 text-center">

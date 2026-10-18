@@ -33,7 +33,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn, cleanObject, parseEntryDate, truncateLargeFields } from './lib/utils';
+import { cn, cleanObject, parseEntryDate, truncateLargeFields, getEntryDateTimeSortKey } from './lib/utils';
 import { Entry, FixedCost, Category, AppState, AppSheetMapping, MaintenanceInterval } from './types';
 import { DEFAULT_CATEGORIES, DEFAULT_FIXED_COSTS, DEFAULT_EARNING_CATEGORIES, DEFAULT_MAINTENANCE_INTERVALS, DEFAULT_REFUND_CATEGORIES } from './constants';
 
@@ -129,6 +129,7 @@ export default function App() {
     refundCategories: DEFAULT_REFUND_CATEGORIES,
     currentKm: 0,
     targetKm: 0,
+    workDaysPerMonth: 22,
     maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,
     appConfig: {
       publishedVersion: APP_VERSION,
@@ -362,6 +363,7 @@ export default function App() {
           refundCategories: uniqueRefundCats,
           currentKm: data.currentKm || 0,
           targetKm: data.targetKm || 0,
+          workDaysPerMonth: data.workDaysPerMonth !== undefined ? Number(data.workDaysPerMonth) : 22,
           combustivelPrincipal: data.combustivelPrincipal || undefined,
           maintenanceIntervals: mergedIntervals,
           trialStartDate: trialStart,
@@ -422,9 +424,7 @@ export default function App() {
       
       // Sort by data desc, then createdAt time desc to ensure chronological order
       const sortedEntries = entriesData.sort((a, b) => {
-        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');
-        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');
-        return dateB.localeCompare(dateA);
+        return getEntryDateTimeSortKey(b).localeCompare(getEntryDateTimeSortKey(a));
       });
       
       setState(prev => ({ ...prev, entries: sortedEntries }));
@@ -949,6 +949,18 @@ export default function App() {
     }
   }, [user]);
 
+  const handleUpdateWorkDaysPerMonth = useCallback(async (days: number) => {
+    const safeDays = Math.min(31, Math.max(1, Math.round(days || 22)));
+    setState(prev => ({ ...prev, workDaysPerMonth: safeDays }));
+    if (!user) return;
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, cleanObject({ workDaysPerMonth: safeDays }), { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+    }
+  }, [user]);
+
   const handleUpdateAppConfig = useCallback(async (config: any) => {
     if (!isAdmin) return;
     try {
@@ -1117,16 +1129,19 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-[10px] opacity-80 uppercase font-semibold">Saldo do Mês</p>
+              <p className="text-[10px] opacity-80 uppercase font-semibold">Resultado do mês</p>
               <p 
                 className={cn(
                   "font-bold text-sm",
                   totals.balance >= 0 ? "text-emerald-400" : "text-rose-400",
-                  isAdmin && "cursor-help"
+                  "cursor-help"
                 )}
-                title={isAdmin ? `Cálculo do Saldo:\nGanhos: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.earnings)}\n- Custos Fixos: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.totalFixedCosts)}\n- Despesas de Rua: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.dailyExpenses)}\n= Saldo: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.balance)}` : undefined}
+                title="ganhos − despesas − todos os custos fixos do mês (pagos ou não)"
               >
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.balance)}
+              </p>
+              <p className="text-[8px] opacity-60 leading-tight hidden sm:block">
+                ganhos − despesas − todos os custos fixos
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1165,6 +1180,7 @@ export default function App() {
                 nextOilChange={nextOilChange}
                 currentKm={lastRecordedKm}
                 targetKm={state.targetKm}
+                workDaysPerMonth={state.workDaysPerMonth ?? 22}
                 maintenanceIntervals={state.maintenanceIntervals}
                 entries={state.entries}
                 categories={state.categories}
@@ -1207,6 +1223,7 @@ export default function App() {
                 maintenanceIntervals={state.maintenanceIntervals}
                 entries={state.entries}
                 categories={state.categories}
+                onNavigateToSettings={() => setActiveTab('settings')}
               />
             </motion.div>
           )}
@@ -1285,6 +1302,8 @@ export default function App() {
                 currentKm={state.currentKm}
                 onUpdateCurrentKm={handleUpdateCurrentKm}
                 lastRecordedKm={lastRecordedKm}
+                workDaysPerMonth={state.workDaysPerMonth ?? 22}
+                onUpdateWorkDaysPerMonth={handleUpdateWorkDaysPerMonth}
                 combustivelPrincipal={state.combustivelPrincipal}
                 onUpdateCombustivelPrincipal={handleUpdateCombustivelPrincipal}
                 maintenanceIntervals={state.maintenanceIntervals}

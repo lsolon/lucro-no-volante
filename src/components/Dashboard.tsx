@@ -20,7 +20,7 @@ import {
   Zap,
   Layers
 } from 'lucide-react';
-import { cn, parseEntryDate } from '../lib/utils';
+import { cn, parseEntryDate, formatNumberBR, formatDateBR } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { getAllEmptyTankCycles, getEmptyTankDualView } from '../lib/fuel-calculator';
@@ -39,6 +39,7 @@ interface DashboardProps {
     todayExpenses: number;
     paidFixedCostsDetails: { item: string; valor: number; data: string }[];
     paidFixedCostsSum: number;
+    paidFixedCostsTotal?: number;
     unpaidFixedCosts: string[];
     fixedCostPaymentIds: string[];
   };
@@ -46,6 +47,7 @@ interface DashboardProps {
   nextOilChange: number | null;
   currentKm: number;
   targetKm: number;
+  workDaysPerMonth?: number;
   maintenanceIntervals: MaintenanceInterval[];
   entries: Entry[];
   categories: { id: string; nome: string }[];
@@ -64,6 +66,7 @@ export default function Dashboard({
   nextOilChange, 
   currentKm, 
   targetKm,
+  workDaysPerMonth = 22,
   maintenanceIntervals,
   entries,
   categories,
@@ -157,33 +160,77 @@ export default function Dashboard({
     return fixedCostDetails.pending.reduce((acc, p) => acc + p.valor, 0);
   }, [fixedCostDetails]);
 
-  const dailyWorkBurden = useMemo(() => {
-    // Already filtered by current month in App.tsx totals calculation, but Dashboard gets ALL entries
-    // Need to filter locally here to only count days in the current month
+  const currentMonthEntries = useMemo(() => {
     const start = startOfMonth(new Date());
     const end = endOfMonth(new Date());
-    
-    const currentMonthEntries = entries.filter(e => {
-        const date = parseEntryDate(e.data);
-        return isWithinInterval(date, { start, end });
+    return entries.filter(e => {
+      const date = parseEntryDate(e.data);
+      return isWithinInterval(date, { start, end });
     });
+  }, [entries]);
 
-    const workedDays = new Set(
+  const workedDays = useMemo(() => {
+    return new Set(
       currentMonthEntries.filter(e => e.tipo === 'Ganhos').map(e => e.data)
     ).size;
-    if (workedDays === 0) return null;
+  }, [currentMonthEntries]);
 
-    // Custo Médio = (Custos Fixos Pendentes + Despesas de Rua) / dias trabalhados
-    const dailyExpenses = totals.dailyExpenses || 0;
+  const dailyGoalData = useMemo(() => {
+    const daysInWorkMonth = Math.min(31, Math.max(1, workDaysPerMonth || 22));
     
-    const remainingFixedCosts = totalPendingFixedCosts;
-    const totalObligations = remainingFixedCosts + dailyExpenses;
+    // (total de custos fixos do mês ÷ workDaysPerMonth)
+    const fixedPerDay = (totals.totalFixedCosts || 0) / daysInWorkMonth;
     
-    return {
-      burden: workedDays > 0 ? totalObligations / workedDays : 0,
-      days: workedDays
+    // média de despesas de rua por dia trabalhado no mês (despesas de rua do mês ÷ número de dias com lançamento de ganho no mês; se ainda não houver dia trabalhado, use 0)
+    const avgStreetExpensesPerDay = workedDays > 0 ? ((totals.dailyExpenses || 0) / workedDays) : 0;
+    
+    // Custo base por dia trabalhado (sem a margem)
+    const baseCostPerDay = fixedPerDay + avgStreetExpensesPerDay;
+    
+    // Margem 10%
+    const margin10 = baseCostPerDay * 0.10;
+    
+    // Meta diária = custo base + 10%
+    const target = baseCostPerDay + margin10;
+    
+    const remainingToday = Math.max(0, target - totals.todayEarnings);
+    const percentToday = target > 0 ? (totals.todayEarnings / target) * 100 : 0;
+    const todayProfit = totals.todayEarnings - totals.todayExpenses;
+
+    // Se o lucro real do mês estiver negativo
+    const isNegativeBalance = totals.balance < 0;
+    const deficitMonth = isNegativeBalance ? Math.abs(totals.balance) : 0;
+    const remainingWorkDays = Math.max(1, daysInWorkMonth - workedDays);
+    const deficitPerDay = deficitMonth / remainingWorkDays;
+
+    return { 
+      target, 
+      remainingToday, 
+      percentToday, 
+      fixedPerDay, 
+      avgStreetExpensesPerDay,
+      baseCostPerDay,
+      margin10,
+      todayExpenses: totals.todayExpenses, 
+      todayProfit,
+      isNegativeBalance,
+      deficitMonth,
+      remainingWorkDays,
+      deficitPerDay,
+      daysInWorkMonth,
+      workedDays
     };
-  }, [entries, totals, totalPendingFixedCosts]);
+  }, [totals.totalFixedCosts, totals.dailyExpenses, totals.todayEarnings, totals.todayExpenses, totals.balance, workDaysPerMonth, workedDays]);
+
+  const dailyWorkBurden = useMemo(() => {
+    return {
+      burden: dailyGoalData.baseCostPerDay,
+      days: workedDays,
+      fixedPerDay: dailyGoalData.fixedPerDay,
+      avgStreetExpensesPerDay: dailyGoalData.avgStreetExpensesPerDay,
+      workDays: dailyGoalData.daysInWorkMonth
+    };
+  }, [dailyGoalData, workedDays]);
 
   const statusMessage = useMemo(() => {
     if (totals.progress >= 100) {
@@ -264,27 +311,6 @@ export default function Dashboard({
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
-
-  const dailyGoalData = useMemo(() => {
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysElapsed = now.getDate();
-    
-    // Daily Fixed Cost (Amortized)
-    const dailyFixed = totals.totalFixedCosts / daysInMonth;
-    
-    // Use today's actual expenses instead of average
-    const todayExpenses = totals.todayExpenses;
-    
-    // Total Daily Cost + 10% Profit
-    const target = (dailyFixed + todayExpenses) * 1.1;
-    
-    const remainingToday = Math.max(0, target - totals.todayEarnings);
-    const percentToday = (totals.todayEarnings / target) * 100;
-    const todayProfit = totals.todayEarnings - totals.todayExpenses;
-    
-    return { target, remainingToday, percentToday, dailyFixed, todayExpenses, todayProfit };
-  }, [totals.totalFixedCosts, totals.todayExpenses, totals.todayEarnings]);
 
   const handleShare = async () => {
     const shareData = {
@@ -423,19 +449,19 @@ export default function Dashboard({
                     {!isRecent ? '📊 1. Ciclo Completo Acumulado' : '⚡ 2. Ciclo Mais Recente'} ({activeCycle.combustivel})
                   </span>
                   <span className="text-amber-200/90 font-medium text-[11px] bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
-                    {activeCycle.startDate} ➔ {activeCycle.endDate} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})
+                    {formatDateBR(activeCycle.startDate)} ➔ {formatDateBR(activeCycle.endDate)} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Km Rodados</p>
-                    <p className="text-base sm:text-lg font-black text-white">+{activeCycle.kmRodados} km</p>
-                    <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">{activeCycle.startKm} ➔ {activeCycle.endKm}</p>
+                    <p className="text-base sm:text-lg font-black text-white">+{formatNumberBR(activeCycle.kmRodados)} km</p>
+                    <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">{formatNumberBR(activeCycle.startKm)} km ➔ {formatNumberBR(activeCycle.endKm)} km</p>
                   </div>
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Consumo Real</p>
-                    <p className="text-base sm:text-lg font-black text-amber-400">{activeCycle.mediaConsumo.toFixed(2)} <span className="text-[10px] text-slate-300">km/{activeCycle.unit}</span></p>
+                    <p className="text-base sm:text-lg font-black text-amber-400">{formatNumberBR(activeCycle.mediaConsumo, 2)} <span className="text-[10px] text-slate-300">km/{activeCycle.unit}</span></p>
                     <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">medido na bomba</p>
                   </div>
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
@@ -445,7 +471,7 @@ export default function Dashboard({
                   </div>
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Combustível</p>
-                    <p className="text-base sm:text-lg font-black text-white">{activeCycle.combustivelConsumido.toFixed(1)} {activeCycle.unit}</p>
+                    <p className="text-base sm:text-lg font-black text-white">{formatNumberBR(activeCycle.combustivelConsumido, 2)} {activeCycle.unit}</p>
                     <p className="text-[9px] text-slate-300 font-medium mt-0.5">Gasto: {formatCurrency(activeCycle.valorConsumido)}</p>
                   </div>
                 </div>
@@ -453,11 +479,11 @@ export default function Dashboard({
                 <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-200/90 font-medium">
                   {isRecent ? (
                     <span>
-                      1. Ciclo Completo Geral: <b className="text-white">+{emptyTankDual.globalCycle.kmRodados} km</b> • Média: <b className="text-amber-300">{emptyTankDual.globalCycle.mediaConsumo.toFixed(2)} km/{emptyTankDual.globalCycle.unit}</b>
+                      1. Ciclo Completo Geral: <b className="text-white">+{formatNumberBR(emptyTankDual.globalCycle.kmRodados)} km</b> • Média: <b className="text-amber-300">{formatNumberBR(emptyTankDual.globalCycle.mediaConsumo, 2)} km/{emptyTankDual.globalCycle.unit}</b>
                     </span>
                   ) : (
                     <span>
-                      2. Ciclo Mais Recente: <b className="text-white">+{emptyTankDual.recentCycle.kmRodados} km</b> • Média: <b className="text-amber-300">{emptyTankDual.recentCycle.mediaConsumo.toFixed(2)} km/{emptyTankDual.recentCycle.unit}</b>
+                      2. Ciclo Mais Recente: <b className="text-white">+{formatNumberBR(emptyTankDual.recentCycle.kmRodados)} km</b> • Média: <b className="text-amber-300">{formatNumberBR(emptyTankDual.recentCycle.mediaConsumo, 2)} km/{emptyTankDual.recentCycle.unit}</b>
                     </span>
                   )}
                   <span className="text-[11px] text-slate-300">
@@ -617,23 +643,31 @@ export default function Dashboard({
               />
             </div>
             
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <p className="text-[10px] font-bold text-blue-100">
                 {dailyGoalData.remainingToday > 0 
                   ? `Faltam ${formatCurrency(dailyGoalData.remainingToday)} para bater a meta`
                   : "🎉 Meta diária atingida! Tudo agora é lucro real!"}
               </p>
-              <div className="flex gap-2">
-                <div className="flex items-center gap-1">
-                  <div className="size-1.5 rounded-full bg-blue-300/50" />
-                  <span className="text-[8px] font-bold text-blue-200 uppercase">Fixo: {formatCurrency(dailyGoalData.dailyFixed)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="size-1.5 rounded-full bg-blue-300/50" />
-                  <span className="text-[8px] font-bold text-blue-200 uppercase">Gasto Hoje: {formatCurrency(dailyGoalData.todayExpenses)}</span>
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="text-[9px] font-bold text-blue-200 bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">Fixo/dia: {formatCurrency(dailyGoalData.fixedPerDay)}</span>
+                <span className="text-[9px] font-bold text-blue-200 bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">Média de gastos/dia: {formatCurrency(dailyGoalData.avgStreetExpensesPerDay)}</span>
+                <span className="text-[9px] font-bold text-blue-200 bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">Margem 10%: {formatCurrency(dailyGoalData.margin10)}</span>
               </div>
             </div>
+
+            {dailyGoalData.isNegativeBalance && (
+              <div className="p-3 bg-rose-500/20 border border-rose-400/40 rounded-2xl text-xs text-rose-100 flex items-start gap-2">
+                <AlertCircle className="size-4 shrink-0 text-rose-300 mt-0.5" />
+                <div>
+                  <span className="font-bold">Para fechar o mês no zero:</span> faltam {formatCurrency(dailyGoalData.deficitMonth)} — cerca de {formatCurrency(dailyGoalData.deficitPerDay)} por dia ({dailyGoalData.remainingWorkDays} {dailyGoalData.remainingWorkDays === 1 ? 'dia restante' : 'dias restantes'}).
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-blue-200/80 leading-relaxed italic pt-1">
+              * Meta diária = (total de custos fixos do mês ÷ {dailyGoalData.daysInWorkMonth} dias) + média de despesas de rua por dia trabalhado no mês + 10% de margem.
+            </p>
           </div>
         </div>
       </div>
@@ -736,7 +770,7 @@ export default function Dashboard({
         </div>
 
         <p className="text-[10px] text-blue-200 mt-4 font-medium flex items-center gap-1">
-          <Info size={12} /> Clique para ver o detalhamento completo de todos OS itens.
+          <Info size={12} /> Clique para ver o detalhamento completo de todos os itens.
         </p>
       </div>
 
@@ -752,11 +786,11 @@ export default function Dashboard({
                   className="size-6 rounded-lg"
                 />
               </div>
-              <h3 className="font-bold text-white">Meta de Kilometragem</h3>
+              <h3 className="font-bold text-white">Meta de Quilometragem</h3>
             </div>
             <div className="text-right">
               <span className="text-[10px] font-black text-blue-300 uppercase bg-blue-500/20 px-2 py-1 rounded-lg">
-                {kmProgress?.percent.toFixed(1)}%
+                {formatNumberBR(kmProgress?.percent, 1)}%
               </span>
             </div>
           </div>
@@ -765,7 +799,7 @@ export default function Dashboard({
             <div>
               <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Progresso</p>
               <p className="text-2xl font-black text-white tracking-tight">
-                {currentKm} <span className="text-sm text-blue-300 font-black">/ {targetKm} km</span>
+                {formatNumberBR(currentKm)} <span className="text-sm text-blue-300 font-black">/ {formatNumberBR(targetKm)} km</span>
               </p>
             </div>
           </div>
@@ -779,8 +813,8 @@ export default function Dashboard({
           </div>
           <p className="text-[10px] text-blue-200 mt-2 font-medium">
             {currentKm >= targetKm 
-              ? "🎉 Meta de kilometragem atingida!" 
-              : `Faltam ${targetKm - currentKm} km para atingir sua meta mensal.`}
+              ? "🎉 Meta de quilometragem atingida!" 
+              : `Faltam ${formatNumberBR(targetKm - currentKm)} km para atingir sua meta mensal.`}
           </p>
         </div>
       )}
@@ -803,22 +837,37 @@ export default function Dashboard({
         />
       </div>
 
-      {/* Saldo a Pagar Card */}
+      {/* Ainda a pagar no mês Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-rose-500/10 rounded-xl">
               <TrendingDown className="text-rose-400 size-5" />
             </div>
-            <h3 className="font-bold text-white">Total de Gastos do Mês</h3>
+            <div>
+              <h3 className="font-bold text-white">Ainda a pagar no mês</h3>
+            </div>
           </div>
-          <button 
-            onClick={() => setShowDetails(!showDetails)}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
-          >
-             <Info className={cn("text-white/50 size-5", showDetails && "text-white")} />
-          </button>
-          <span className="text-lg font-black text-rose-400">{formatCurrency(totals.balanceToPay)}</span>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowDetails(!showDetails)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+               <Info className={cn("text-white/50 size-5", showDetails && "text-white")} />
+            </button>
+            <span className="text-lg font-black text-rose-400">{formatCurrency(totals.balanceToPay)}</span>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-white/10 space-y-1 text-xs">
+          <div className="flex justify-between text-blue-100 font-medium">
+            <span>Total do mês:</span>
+            <span className="font-bold">{formatCurrency((totals.totalFixedCosts || 0) + (totals.dailyExpenses || 0))}</span>
+          </div>
+          <div className="flex justify-between text-blue-200">
+            <span>Já pago:</span>
+            <span className="font-bold text-emerald-300">{formatCurrency(((totals.paidFixedCostsTotal ?? totals.paidFixedCostsSum) || 0) + (totals.dailyExpenses || 0))}</span>
+          </div>
         </div>
         
         {showDetails && totals.paidFixedCostsDetails && (
@@ -860,22 +909,21 @@ export default function Dashboard({
               <div className="p-2 bg-emerald-500/10 rounded-xl">
                 <Target className="text-emerald-400 size-5" />
               </div>
-              <h3 className="font-bold text-white">Custo Médio p/ Dia</h3>
+              <h3 className="font-bold text-white">Custo por dia trabalhado</h3>
             </div>
             <span className="text-lg font-black text-emerald-400">{formatCurrency(dailyWorkBurden.burden)}</span>
           </div>
           <p className="text-[10px] text-blue-200 font-medium leading-tight mb-2">
-            Foram {dailyWorkBurden.days} dias trabalhados esse mês.
+            Foram {dailyWorkBurden.days} dias trabalhados esse mês (base: {dailyWorkBurden.workDays} dias planejados).
           </p>
           
           {showBurdenDetails && (
-            <div className="mt-3 p-3 bg-white/5 rounded-xl text-[10px] text-blue-100 font-mono">
-              <p>Detalhes do cálculo:</p>
-              <p>Custos Fixos Pendentes: {formatCurrency(totalPendingFixedCosts)}</p>
-              <p>+ Despesas de Rua: {formatCurrency(totals.dailyExpenses || 0)}</p>
+            <div className="mt-3 p-3 bg-white/5 rounded-xl text-[10px] text-blue-100 font-mono space-y-1">
+              <p className="font-bold text-white">Detalhes do cálculo:</p>
+              <p>Custos Fixos / dia: {formatCurrency(dailyWorkBurden.fixedPerDay)} (Total {formatCurrency(totals.totalFixedCosts)} ÷ {dailyWorkBurden.workDays} dias)</p>
+              <p>+ Média Despesas de Rua / dia: {formatCurrency(dailyWorkBurden.avgStreetExpensesPerDay)} ({formatCurrency(totals.dailyExpenses || 0)} ÷ {dailyWorkBurden.days} dias trabalhados)</p>
               <p>-------------------------</p>
-              <p>= Total: {formatCurrency(totalPendingFixedCosts + (totals.dailyExpenses || 0))}</p>
-              <p>÷ {dailyWorkBurden.days} dias</p>
+              <p className="font-bold text-emerald-300">= Custo por dia trabalhado: {formatCurrency(dailyWorkBurden.burden)}</p>
             </div>
           )}
 
@@ -1002,7 +1050,8 @@ export default function Dashboard({
       )}>
         <div className="flex justify-between items-start mb-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Lucro Real Estimado</p>
+            <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Resultado do mês</p>
+            <p className="text-[11px] opacity-80 font-medium mb-1">ganhos − despesas − todos os custos fixos do mês (pagos ou não)</p>
             <h2 className="text-4xl font-black tracking-tighter">
               {formatCurrency(totals.balance)}
             </h2>
@@ -1010,19 +1059,19 @@ export default function Dashboard({
           <div className="text-right bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/20">
             <p className="text-[9px] font-black uppercase tracking-wider opacity-90 mb-1">Meta Diária Sugerida</p>
             <p className="text-xl font-black">{formatCurrency(dailyGoalData.target)}</p>
-            <p className="text-[8px] font-bold opacity-70 mt-1">Custo + 10% Lucro</p>
+            <p className="text-[8px] font-bold opacity-70 mt-1">Custo + 10% Margem</p>
           </div>
         </div>
         <p className="text-[10px] font-medium opacity-70 leading-tight">
-          * Valor calculado subtraindo despesas de rua e custos fixos totais dos ganhos brutos. 
-          A meta diária considera seus custos fixos mensais, média de gastos diários e margem de 10%.
+          * Valor calculado subtraindo despesas de rua e todos os custos fixos dos ganhos brutos. 
+          A meta diária considera seus custos fixos mensais divididos por {dailyGoalData.daysInWorkMonth} dias, média de despesas de rua por dia trabalhado e 10% de margem.
         </p>
         <div className="mt-4 border-t border-white/10 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div className="text-[10px] text-white/50">
             Cálculo tributário disponível abaixo.
           </div>
-          <a href="mailto:lucronovolanteapp@gmail.com" className="text-xs font-bold text-blue-200 hover:text-white transition-colors flex items-center gap-1">
-            Dúvidas/Suporte: lucronovolanteapp@gmail.com
+          <a href="mailto:contato@routinetech.com.br" className="text-xs font-bold text-blue-200 hover:text-white transition-colors flex items-center gap-1">
+            Dúvidas/Suporte: contato@routinetech.com.br
           </a>
         </div>
       </div>

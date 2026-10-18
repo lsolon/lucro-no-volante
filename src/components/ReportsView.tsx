@@ -29,7 +29,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, parseEntryDate } from '../lib/utils';
+import { cn, parseEntryDate, formatNumberBR, formatDateBR } from '../lib/utils';
 import { 
   BarChart, 
   Bar, 
@@ -582,15 +582,16 @@ export default function ReportsView({ entries, categories, earningCategories, re
         </div>
       </div>
 
-      {/* Balance Card */}
+      {/* Caixa do período Card */}
       <div className={cn(
         "p-5 rounded-3xl shadow-sm border flex justify-between items-center",
         totals.balance >= 0 ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
       )}>
         <div>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Saldo do Período</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Caixa do período</p>
+          <p className="text-[10px] text-slate-400 font-medium">o que entrou − o que saiu (só lançamentos)</p>
           <p className={cn(
-            "text-xl font-black tracking-tight",
+            "text-xl font-black tracking-tight mt-0.5",
             totals.balance >= 0 ? "text-emerald-700" : "text-rose-700"
           )}>
             {formatCurrency(totals.balance)}
@@ -889,19 +890,19 @@ export default function ReportsView({ entries, categories, earningCategories, re
                     {!isRecent ? '📊 1. Ciclo Completo Acumulado' : '⚡ 2. Ciclo Mais Recente'} ({activeCycle.combustivel})
                   </span>
                   <span className="text-amber-200/90 font-medium text-[11px] bg-white/5 px-2 py-0.5 rounded-lg border border-white/10">
-                    {activeCycle.startDate} ➔ {activeCycle.endDate} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})
+                    {formatDateBR(activeCycle.startDate)} ➔ {formatDateBR(activeCycle.endDate)} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Km Rodados</p>
-                    <p className="text-base sm:text-lg font-black text-white">+{activeCycle.kmRodados} km</p>
-                    <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">{activeCycle.startKm} ➔ {activeCycle.endKm}</p>
+                    <p className="text-base sm:text-lg font-black text-white">+{formatNumberBR(activeCycle.kmRodados)} km</p>
+                    <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">{formatNumberBR(activeCycle.startKm)} km ➔ {formatNumberBR(activeCycle.endKm)} km</p>
                   </div>
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Consumo Real</p>
-                    <p className="text-base sm:text-lg font-black text-amber-400">{activeCycle.mediaConsumo.toFixed(2)} <span className="text-[10px] text-slate-300">km/{activeCycle.unit}</span></p>
+                    <p className="text-base sm:text-lg font-black text-amber-400">{formatNumberBR(activeCycle.mediaConsumo, 2)} <span className="text-[10px] text-slate-300">km/{activeCycle.unit}</span></p>
                     <p className="text-[9px] text-amber-200/80 font-medium mt-0.5">medido na bomba</p>
                   </div>
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
@@ -911,7 +912,7 @@ export default function ReportsView({ entries, categories, earningCategories, re
                   </div>
                   <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">Combustível</p>
-                    <p className="text-base sm:text-lg font-black text-white">{activeCycle.combustivelConsumido.toFixed(1)} {activeCycle.unit}</p>
+                    <p className="text-base sm:text-lg font-black text-white">{formatNumberBR(activeCycle.combustivelConsumido, 2)} {activeCycle.unit}</p>
                     <p className="text-[9px] text-slate-300 font-medium mt-0.5">Gasto: {formatCurrency(activeCycle.valorConsumido)}</p>
                   </div>
                 </div>
@@ -919,11 +920,11 @@ export default function ReportsView({ entries, categories, earningCategories, re
                 <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-200/90 font-medium">
                   {isRecent ? (
                     <span>
-                      1. Ciclo Completo Geral: <b className="text-white">+{emptyTankDual.globalCycle.kmRodados} km</b> • Média: <b className="text-amber-300">{emptyTankDual.globalCycle.mediaConsumo.toFixed(2)} km/{emptyTankDual.globalCycle.unit}</b>
+                      1. Ciclo Completo Geral: <b className="text-white">+{formatNumberBR(emptyTankDual.globalCycle.kmRodados)} km</b> • Média: <b className="text-amber-300">{formatNumberBR(emptyTankDual.globalCycle.mediaConsumo, 2)} km/{emptyTankDual.globalCycle.unit}</b>
                     </span>
                   ) : (
                     <span>
-                      2. Ciclo Mais Recente: <b className="text-white">+{emptyTankDual.recentCycle.kmRodados} km</b> • Média: <b className="text-amber-300">{emptyTankDual.recentCycle.mediaConsumo.toFixed(2)} km/{emptyTankDual.recentCycle.unit}</b>
+                      2. Ciclo Mais Recente: <b className="text-white">+{formatNumberBR(emptyTankDual.recentCycle.kmRodados)} km</b> • Média: <b className="text-amber-300">{formatNumberBR(emptyTankDual.recentCycle.mediaConsumo, 2)} km/{emptyTankDual.recentCycle.unit}</b>
                     </span>
                   )}
                   <span className="text-[11px] text-slate-300">

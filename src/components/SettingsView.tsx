@@ -67,6 +67,8 @@ interface SettingsViewProps {
   currentKm: number;
   onUpdateCurrentKm: (km: number) => void;
   lastRecordedKm: number;
+  workDaysPerMonth?: number;
+  onUpdateWorkDaysPerMonth?: (days: number) => void;
   combustivelPrincipal?: string;
   onUpdateCombustivelPrincipal?: (fuel: string) => void;
   maintenanceIntervals: MaintenanceInterval[];
@@ -85,7 +87,7 @@ export default function SettingsView({
   onUpdateFixedCosts, 
   earningCategories, 
   onUpdateEarningCategories,
-  refundCategories,
+  refundCategories, 
   onUpdateRefundCategories,
   entries,
   onUpdateEntries,
@@ -98,6 +100,8 @@ export default function SettingsView({
   currentKm,
   onUpdateCurrentKm,
   lastRecordedKm,
+  workDaysPerMonth = 22,
+  onUpdateWorkDaysPerMonth,
   combustivelPrincipal = 'Gasolina',
   onUpdateCombustivelPrincipal,
   maintenanceIntervals,
@@ -791,7 +795,7 @@ export default function SettingsView({
               <div className="p-2 bg-blue-50 rounded-xl">
                 <Car className="text-blue-600 size-5" />
               </div>
-              <h3 className="font-bold text-slate-800">Metas de Kilometragem</h3>
+              <h3 className="font-bold text-slate-800">Metas de Quilometragem e Trabalho</h3>
             </div>
             
             <div className="space-y-2">
@@ -808,6 +812,32 @@ export default function SettingsView({
               </div>
               <p className="text-[10px] text-slate-400 ml-1 italic">
                 * Defina quantos quilômetros você planeja ou precisa rodar no mês.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-bold text-slate-500 ml-1">Dias de trabalho por mês</label>
+              <div className="relative">
+                <input 
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={workDaysPerMonth || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) {
+                      onUpdateWorkDaysPerMonth?.(Math.min(31, Math.max(1, val)));
+                    } else {
+                      onUpdateWorkDaysPerMonth?.(22);
+                    }
+                  }}
+                  placeholder="22"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-lg font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">dias</div>
+              </div>
+              <p className="text-[10px] text-slate-400 ml-1 italic">
+                * Quantidade de dias que você planeja trabalhar no mês (padrão: 22 dias). Usado no cálculo da meta diária e custo por dia trabalhado.
               </p>
             </div>
 
@@ -952,8 +982,8 @@ export default function SettingsView({
                 Dúvidas, sugestões ou encontrou algum problema no aplicativo? Entre em contato conosco via e-mail.
               </p>
               <div className="flex p-4 bg-slate-50 border border-slate-100 rounded-2xl items-center justify-between">
-                <span className="font-bold text-slate-700 text-sm">lucronovolanteapp@gmail.com</span>
-                <a href="mailto:lucronovolanteapp@gmail.com" className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100 transition-all">
+                <span className="font-bold text-slate-700 text-sm">contato@routinetech.com.br</span>
+                <a href="mailto:contato@routinetech.com.br" className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100 transition-all">
                   Enviar E-mail
                 </a>
               </div>
@@ -2170,6 +2200,37 @@ function MappingField({ label, value, options, onChange }: { label: string, valu
 function MaintenanceIntervalAdder({ onAdd }: { onAdd: (item: string, km: number) => void }) {
   const [item, setItem] = useState('');
   const [km, setKm] = useState('');
+  const [isKmAutoSuggested, setIsKmAutoSuggested] = useState(false);
+
+  const getSuggestedInterval = (name: string): number | null => {
+    const n = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (n.includes('oleo') || n.includes('filtro')) return 10000;
+    if (n.includes('pastilha')) return 30000;
+    if (n.includes('pneu')) return 40000;
+    if (n.includes('correia')) return 50000;
+    if (n.includes('vela')) return 30000;
+    if (n.includes('amortecedor')) return 60000;
+    return null;
+  };
+
+  const handleItemChange = (val: string) => {
+    setItem(val);
+    const suggested = getSuggestedInterval(val);
+    if (suggested) {
+      if (!km || isKmAutoSuggested) {
+        setKm(suggested.toString());
+        setIsKmAutoSuggested(true);
+      }
+    } else if (isKmAutoSuggested) {
+      setKm('');
+      setIsKmAutoSuggested(false);
+    }
+  };
+
+  const handleKmChange = (val: string) => {
+    setKm(val);
+    setIsKmAutoSuggested(false);
+  };
 
   const handleAdd = () => {
     const trimmed = item.trim();
@@ -2177,6 +2238,7 @@ function MaintenanceIntervalAdder({ onAdd }: { onAdd: (item: string, km: number)
     onAdd(trimmed, Number(km));
     setItem('');
     setKm('');
+    setIsKmAutoSuggested(false);
   };
 
   return (
@@ -2189,7 +2251,7 @@ function MaintenanceIntervalAdder({ onAdd }: { onAdd: (item: string, km: number)
         <input 
           type="text"
           value={item}
-          onChange={(e) => setItem(e.target.value)}
+          onChange={(e) => handleItemChange(e.target.value)}
           placeholder="Ex: Correia Dentada"
           className="w-full bg-white border border-emerald-100 rounded-xl py-2 px-3 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
         />
@@ -2197,7 +2259,7 @@ function MaintenanceIntervalAdder({ onAdd }: { onAdd: (item: string, km: number)
           <input 
             type="number"
             value={km}
-            onChange={(e) => setKm(e.target.value)}
+            onChange={(e) => handleKmChange(e.target.value)}
             placeholder="KM (Ex: 50000)"
             className="flex-1 bg-white border border-emerald-100 rounded-xl py-2 px-3 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           />

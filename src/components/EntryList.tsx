@@ -36,7 +36,7 @@ import {
   Hash,
   History
 } from 'lucide-react';
-import { cn, parseEntryDate, formatTimeToHHMM } from '../lib/utils';
+import { cn, parseEntryDate, formatTimeToHHMM, formatNumberBR, formatDateBR, getEntryDateTimeSortKey } from '../lib/utils';
 import { Entry, Category } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { calculateEmptyTankCycle, calculateCumulativeEmptyTankCycle } from '../lib/fuel-calculator';
@@ -152,17 +152,9 @@ export default function EntryList({ entries, categories, earningCategories, refu
     // Sort
     return filtered.sort((a, b) => {
       if (sortOrder === 'date_desc' || sortOrder === 'date_asc') {
-        const dateA = parseEntryDate(a.data).getTime();
-        const dateB = parseEntryDate(b.data).getTime();
-        
-        if (dateA !== dateB) {
-          return sortOrder === 'date_desc' ? dateB - dateA : dateA - dateB;
-        } else {
-          // Fallback to createdAt for exact same date
-          const timeA = a.createdAt || '00:00:00';
-          const timeB = b.createdAt || '00:00:00';
-          return sortOrder === 'date_desc' ? timeB.localeCompare(timeA) : timeA.localeCompare(timeB);
-        }
+        const keyA = getEntryDateTimeSortKey(a);
+        const keyB = getEntryDateTimeSortKey(b);
+        return sortOrder === 'date_desc' ? keyB.localeCompare(keyA) : keyA.localeCompare(keyB);
       } else if (sortOrder === 'value_desc') {
         return b.valor - a.valor;
       } else if (sortOrder === 'value_asc') {
@@ -405,7 +397,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
                     </p>
                     {entry.km && (
                       <p className="text-[10px] font-bold text-slate-400">
-                        {entry.km} km
+                        {formatNumberBR(entry.km)} km
                         {(() => {
                           // Find the chronologically previous entry that has KM
                           const nextWithKm = filteredEntries.slice(index + 1).find(e => e.km && e.km > 0);
@@ -414,7 +406,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
                             if (diff > 0) {
                               return (
                                 <span className="text-blue-500 ml-1">
-                                  (+{diff} km)
+                                  (+{formatNumberBR(diff)} km)
                                 </span>
                               );
                             }
@@ -428,6 +420,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
                 
                 {category?.nome.toLowerCase() === 'abastecimento' && (entry.combustivel || entry.quantidade || entry.bandeiraPosto || entry.tanqueVazio) && (() => {
                   const cycle = entry.tanqueVazio ? calculateEmptyTankCycle(entry, entries, categories) : null;
+                  const fuelUnit = entry.combustivel?.toLowerCase().includes('gnv') ? 'm³' : 'L';
                   return (
                     <div className="mt-2 space-y-2">
                       <div className="flex flex-wrap gap-2">
@@ -443,7 +436,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
                         )}
                         {entry.quantidade && (
                           <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
-                            {entry.quantidade} L/m³
+                            {formatNumberBR(entry.quantidade, 2)} {fuelUnit}
                           </span>
                         )}
                         {entry.valorUnitario && (
@@ -463,11 +456,11 @@ export default function EntryList({ entries, categories, earningCategories, refu
                         <div className="p-2.5 bg-amber-500/10 border border-amber-300/70 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
                           <div className="flex items-center gap-1.5 font-black text-amber-950">
                             <Fuel size={13} className="text-amber-600 shrink-0" />
-                            <span>Ciclo Tanque Vazio: +{cycle.kmRodados} km</span>
+                            <span>Ciclo Tanque Vazio: +{formatNumberBR(cycle.kmRodados)} km</span>
                           </div>
                           <div className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px]">
                             <span className="bg-white/90 px-2 py-0.5 rounded-md border border-amber-200 shadow-2xs">
-                              {cycle.mediaConsumo.toFixed(2)} km/{cycle.unit}
+                              {formatNumberBR(cycle.mediaConsumo, 2)} km/{cycle.unit}
                             </span>
                             <span className="bg-white/90 px-2 py-0.5 rounded-md border border-amber-200 shadow-2xs">
                               {formatCurrency(cycle.custoPorKm)}/km
@@ -695,7 +688,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
               <div className="grid grid-cols-2 gap-4">
                 {selectedEntry.km && (
                   <DetailItem 
-                    label="Kilometragem" 
+                    label="Quilometragem" 
                     value={`${selectedEntry.km} km`} 
                     subValue={(() => {
                       const currentIndex = entries.findIndex(e => e.id === selectedEntry.id);
@@ -814,14 +807,14 @@ export default function EntryList({ entries, categories, earningCategories, refu
                             ? '📊 1. Ciclo Completo Acumulado (1º tanque vazio até este)'
                             : '⚡ 2. Ciclo Mais Recente (Deste Abastecimento)'}
                         </span>
-                        <span>{activeCycle.startDate} ➔ {activeCycle.endDate} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})</span>
+                        <span>{formatDateBR(activeCycle.startDate)} ➔ {formatDateBR(activeCycle.endDate)} ({activeCycle.diasCiclo} {activeCycle.diasCiclo === 1 ? 'dia' : 'dias'})</span>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-black/20 p-3.5 rounded-2xl border border-white/10 text-center">
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Km Rodados</p>
                           <p className="text-lg font-black text-white">+{activeCycle.kmRodados} km</p>
-                          <p className="text-[9px] text-amber-200/80 font-medium">{activeCycle.startKm} ➔ {activeCycle.endKm}</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">{formatNumberBR(activeCycle.startKm)} km ➔ {formatNumberBR(activeCycle.endKm)} km</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Consumido</p>

@@ -7,9 +7,10 @@ import {
   CheckCircle2, 
   ChevronRight,
   History,
-  Info
+  Info,
+  Settings
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, formatNumberBR, formatDateBR } from '../lib/utils';
 import { Entry, MaintenanceInterval } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 
@@ -18,13 +19,15 @@ interface MaintenanceViewProps {
   maintenanceIntervals: MaintenanceInterval[];
   entries: Entry[];
   categories: { id: string; nome: string }[];
+  onNavigateToSettings?: () => void;
 }
 
 export default function MaintenanceView({ 
   currentKm, 
   maintenanceIntervals, 
   entries, 
-  categories 
+  categories,
+  onNavigateToSettings
 }: MaintenanceViewProps) {
   const maintenanceStatus = useMemo(() => {
     let standardItems = maintenanceIntervals.map(interval => {
@@ -40,13 +43,26 @@ export default function MaintenanceView({
         return name.includes(itemName) && e.km;
       });
 
+      const hasInterval = Boolean(interval.intervaloKm && interval.intervaloKm > 0);
+
+      if (!hasInterval) {
+        return {
+          ...interval,
+          remaining: null,
+          percent: 0,
+          lastKm: lastEntry?.km || null,
+          data: lastEntry?.data,
+          noInterval: true
+        };
+      }
+
       if (!lastEntry || !lastEntry.km) return { ...interval, remaining: null, percent: 0, lastKm: null };
 
       const nextChange = lastEntry.km + interval.intervaloKm;
       const remaining = nextChange - currentKm;
       const percent = Math.max(0, Math.min(100, (remaining / interval.intervaloKm) * 100));
       
-      return { ...interval, remaining, percent, lastKm: lastEntry.km };
+      return { ...interval, remaining, percent, lastKm: lastEntry.km, data: lastEntry.data };
     });
 
     const hasOilInterval = maintenanceIntervals.some(i => i.item.toLowerCase().includes('óleo') || i.item.toLowerCase().includes('oleo'));
@@ -59,7 +75,6 @@ export default function MaintenanceView({
       });
 
       if (lastOilEntry && lastOilEntry.km) {
-        // Only add if we don't already have it logged as a dynamic item in this same entry
         if (!lastOilEntry.garantiaKm && lastOilEntry.manutencaoItem !== 'Sim') {
           const nextChange = lastOilEntry.km + 10000;
           const remaining = nextChange - currentKm;
@@ -71,7 +86,8 @@ export default function MaintenanceView({
             intervaloKm: 10000,
             remaining,
             percent,
-            lastKm: lastOilEntry.km
+            lastKm: lastOilEntry.km,
+            data: lastOilEntry.data
           });
         }
       }
@@ -127,6 +143,8 @@ export default function MaintenanceView({
           remaining = remainingDays * 33; 
         }
 
+        const noInterval = !e.garantiaKm && !e.garantiaMeses;
+
         return {
           id: e.id,
           item: itemName,
@@ -138,14 +156,13 @@ export default function MaintenanceView({
           data: e.data,
           remainingKm,
           remainingDays,
-          isDynamic: true
+          isDynamic: true,
+          noInterval
         };
       });
 
     const dynamicItemsMap = new Map();
     initialDynamicItems.forEach(item => {
-      // Keep only the most recent (assuming entries are sorted descending by date already, 
-      // the first one we encounter is the most recent)
       if (!dynamicItemsMap.has(item.item)) {
         dynamicItemsMap.set(item.item, item);
       }
@@ -156,9 +173,12 @@ export default function MaintenanceView({
     return [...standardItems, ...finalDynamicItems];
   }, [maintenanceIntervals, entries, categories, currentKm]);
 
-  const criticalItems = maintenanceStatus.filter(item => item.remaining !== null && item.remaining < 500);
-  const warningItems = maintenanceStatus.filter(item => item.remaining !== null && item.remaining >= 500 && item.remaining < 1500);
-  const healthyItems = maintenanceStatus.filter(item => item.remaining === null || item.remaining >= 1500);
+  const noIntervalItems = maintenanceStatus.filter(item => item.noInterval || (!item.intervaloKm && !item.garantiaMeses));
+  const itemsWithInterval = maintenanceStatus.filter(item => !item.noInterval && Boolean(item.intervaloKm || item.garantiaMeses));
+
+  const criticalItems = itemsWithInterval.filter(item => item.remaining !== null && item.remaining < 500);
+  const warningItems = itemsWithInterval.filter(item => item.remaining !== null && item.remaining >= 500 && item.remaining < 1500);
+  const healthyItems = itemsWithInterval.filter(item => item.remaining === null || item.remaining >= 1500);
 
   return (
     <div className="bg-[#1a1a1a] text-white p-4 rounded-3xl space-y-6 pb-20">
@@ -176,7 +196,7 @@ export default function MaintenanceView({
         <div className="mt-6 flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
           <div>
             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">KM Atual do Veículo</p>
-            <p className="text-2xl font-black">{currentKm} <span className="text-sm text-slate-400">km</span></p>
+            <p className="text-2xl font-black">{formatNumberBR(currentKm)} <span className="text-sm text-slate-400">km</span></p>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Status Geral</p>
@@ -185,7 +205,7 @@ export default function MaintenanceView({
                 <span className="text-rose-400 font-bold flex items-center gap-1">
                   <AlertCircle size={14} /> Crítico
                 </span>
-              ) : warningItems.length > 0 ? (
+              ) : (warningItems.length > 0 || noIntervalItems.length > 0) ? (
                 <span className="text-amber-400 font-bold flex items-center gap-1">
                   <AlertCircle size={14} /> Atenção
                 </span>
@@ -199,13 +219,44 @@ export default function MaintenanceView({
         </div>
       </div>
 
+      {noIntervalItems.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+              <AlertCircle size={14} /> Itens sem Intervalo Definido
+            </h3>
+            {onNavigateToSettings && (
+              <button 
+                onClick={onNavigateToSettings}
+                className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+              >
+                <Settings size={12} /> Configurar
+              </button>
+            )}
+          </div>
+          {noIntervalItems.map((item, idx) => (
+            <MaintenanceCard 
+              key={`no-int-${item.id}-${idx}`} 
+              item={item} 
+              currentKm={currentKm}
+              onNavigateToSettings={onNavigateToSettings}
+            />
+          ))}
+        </div>
+      )}
+
       {criticalItems.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-xs font-black text-rose-600 uppercase tracking-widest px-1 flex items-center gap-2">
             <AlertCircle size={14} /> Itens Críticos
           </h3>
           {criticalItems.map((item, idx) => (
-            <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+            <MaintenanceCard 
+              key={`crit-${item.id}-${idx}`} 
+              item={item} 
+              currentKm={currentKm}
+              onNavigateToSettings={onNavigateToSettings}
+            />
           ))}
         </div>
       )}
@@ -216,7 +267,12 @@ export default function MaintenanceView({
             <Info size={14} /> Atenção Necessária
           </h3>
           {warningItems.map((item, idx) => (
-            <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+            <MaintenanceCard 
+              key={`warn-${item.id}-${idx}`} 
+              item={item} 
+              currentKm={currentKm}
+              onNavigateToSettings={onNavigateToSettings}
+            />
           ))}
         </div>
       )}
@@ -226,7 +282,12 @@ export default function MaintenanceView({
           <CheckCircle2 size={14} /> Itens em Dia / Sem Registro
         </h3>
         {healthyItems.map((item, idx) => (
-          <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+          <MaintenanceCard 
+            key={`healthy-${item.id}-${idx}`} 
+            item={item} 
+            currentKm={currentKm}
+            onNavigateToSettings={onNavigateToSettings}
+          />
         ))}
       </div>
       
@@ -240,10 +301,19 @@ export default function MaintenanceView({
   );
 }
 
-function MaintenanceCard({ item, currentKm }: { item: any, currentKm: number }) {
+function MaintenanceCard({ 
+  item, 
+  currentKm,
+  onNavigateToSettings 
+}: { 
+  item: any; 
+  currentKm: number;
+  onNavigateToSettings?: () => void;
+}) {
   const style = getCategoryStyle(item.item);
-  const isCritical = item.remaining !== null && item.remaining < 500;
-  const isWarning = item.remaining !== null && item.remaining >= 500 && item.remaining < 1500;
+  const hasNoInterval = Boolean(item.noInterval || (!item.intervaloKm && !item.garantiaMeses));
+  const isCritical = !hasNoInterval && item.remaining !== null && item.remaining < 500;
+  const isWarning = hasNoInterval || (item.remaining !== null && item.remaining >= 500 && item.remaining < 1500);
 
   return (
     <motion.div 
@@ -252,6 +322,7 @@ function MaintenanceCard({ item, currentKm }: { item: any, currentKm: number }) 
       className={cn(
         "bg-[#2a2a2a] p-5 rounded-3xl shadow-sm border transition-all duration-300",
         isCritical ? "border-rose-900/50" : 
+        hasNoInterval ? "border-amber-500/30 bg-amber-950/10" :
         isWarning ? "border-amber-900/50" : "border-white/5"
       )}
     >
@@ -267,10 +338,10 @@ function MaintenanceCard({ item, currentKm }: { item: any, currentKm: number }) 
           <div>
             <h3 className="font-bold text-white">{item.item}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              {item.intervaloKm && item.garantiaMeses ? `Garantia: ${item.intervaloKm} km / ${item.garantiaMeses} meses` : 
-               item.intervaloKm ? `Intervalo: ${item.intervaloKm} km` :
+              {item.intervaloKm && item.garantiaMeses ? `Garantia: ${formatNumberBR(item.intervaloKm)} km / ${item.garantiaMeses} meses` : 
+               item.intervaloKm ? `Intervalo: ${formatNumberBR(item.intervaloKm)} km` :
                item.garantiaMeses ? `Garantia: ${item.garantiaMeses} meses` :
-               "Sem Intervalo"}
+               <span className="text-amber-400 font-bold">Defina o intervalo</span>}
             </p>
           </div>
         </div>
@@ -280,30 +351,48 @@ function MaintenanceCard({ item, currentKm }: { item: any, currentKm: number }) 
       <div className="flex justify-between items-end mb-2">
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            {item.remaining !== null ? "Restam" : "Status"}
+            {hasNoInterval ? "Status" : (item.remaining !== null ? "Restam" : "Status")}
           </p>
-          <p className={cn(
-            "text-2xl font-black tracking-tight",
-            isCritical ? "text-rose-400" : 
-            isWarning ? "text-amber-400" : "text-emerald-400"
-          )}>
-            {item.remainingKm !== undefined && item.remainingKm !== null ? `${item.remainingKm} km` : 
-             item.remainingDays !== undefined && item.remainingDays !== null ? `${item.remainingDays} dias` : 
-             item.remaining !== null ? `${item.remaining} km` : "Sem registro"}
-          </p>
+          {hasNoInterval ? (
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="text-base sm:text-lg font-black text-amber-400">Defina o intervalo</span>
+              {onNavigateToSettings && (
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToSettings();
+                  }}
+                  className="px-2 py-0.5 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-[10px] font-bold rounded-lg border border-amber-400/30 transition-all cursor-pointer"
+                >
+                  Configurações
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className={cn(
+              "text-2xl font-black tracking-tight",
+              isCritical ? "text-rose-400" : 
+              isWarning ? "text-amber-400" : "text-emerald-400"
+            )}>
+              {item.remainingKm !== undefined && item.remainingKm !== null ? `${formatNumberBR(item.remainingKm)} km` : 
+               item.remainingDays !== undefined && item.remainingDays !== null ? `${item.remainingDays} dias` : 
+               item.remaining !== null ? `${formatNumberBR(item.remaining)} km` : "Sem registro"}
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             {item.isDynamic ? "Último Registro" : "Última Revisão"}
           </p>
           <p className="font-bold text-slate-300">
-            {item.lastKm !== null && item.lastKm !== undefined ? `${item.lastKm} km` : 
-             item.data ? new Date(item.data.replace(/-/g, '/')).toLocaleDateString('pt-BR') : "---"}
+            {item.lastKm !== null && item.lastKm !== undefined ? `${formatNumberBR(item.lastKm)} km` : 
+             item.data ? formatDateBR(item.data) : "---"}
           </p>
         </div>
       </div>
 
-      {item.remaining !== null && (
+      {!hasNoInterval && item.remaining !== null && (
         <div className="h-3 bg-black/30 rounded-full overflow-hidden p-0.5">
           <motion.div 
             initial={{ width: 0 }}

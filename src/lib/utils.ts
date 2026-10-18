@@ -191,3 +191,62 @@ export function maskTimeInput(val: string): string {
 export function formatMinutesToDisplay(minutes?: number): string {
   return formatMinutesToHHMM(minutes);
 }
+
+/**
+ * Formata número com padrão pt-BR (ex: "232.335 km", "6,87 m³", "12,60 km/m³").
+ */
+export function formatNumberBR(value: number | undefined | null, decimals?: number): string {
+  if (value === undefined || value === null || isNaN(value)) return '0';
+  if (decimals !== undefined) {
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(value);
+  }
+  return new Intl.NumberFormat('pt-BR').format(value);
+}
+
+/**
+ * Converte qualquer formato de data (YYYY-MM-DD, YYYY/MM/DD) para dd/mm/aaaa.
+ */
+export function formatDateBR(dateStr?: string): string {
+  if (!dateStr) return '';
+  const clean = dateStr.trim().split(' ')[0].replace(/-/g, '/');
+  const parts = clean.split('/');
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      // YYYY/MM/DD -> DD/MM/YYYY
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    if (parts[2].length === 4) {
+      // DD/MM/YYYY
+      return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+    }
+  }
+  return dateStr;
+}
+
+/**
+ * Retorna uma chave uniforme YYYY-MM-DD HH:mm:ss para ordenação cronológica precisa
+ */
+export function getEntryDateTimeSortKey(entry: { data?: string; createdAt?: string }): string {
+  const dateStr = entry.data ? entry.data.replace(/\//g, '-').trim() : '0000-00-00';
+  let timeStr = '00:00:00';
+  if (entry.createdAt) {
+    const raw = entry.createdAt.trim();
+    if (raw.includes('T')) {
+      const parts = raw.split('T');
+      if (parts[1]) {
+        timeStr = parts[1].substring(0, 8);
+      }
+    } else if (raw.includes(' ')) {
+      const parts = raw.split(' ');
+      if (parts[1]) {
+        timeStr = parts[1].substring(0, 8);
+      }
+    } else if (raw.includes(':')) {
+      timeStr = raw.substring(0, 8);
+    }
+  }
+  return `${dateStr} ${timeStr}`;
+}

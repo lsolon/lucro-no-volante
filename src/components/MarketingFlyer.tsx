@@ -92,7 +92,7 @@ export default function MarketingFlyer({ onClose }: { onClose: () => void }) {
 
                 <div className="flex items-center gap-2 text-slate-400 text-sm mt-2">
                   <Mail size={16} />
-                  <span>lucronovolanteapp@gmail.com</span>
+                  <span>contato@routinetech.com.br</span>
                 </div>
               </div>
             </div>

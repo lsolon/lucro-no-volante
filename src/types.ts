@@ -116,6 +116,7 @@ export interface AppState {
   refundCategories: Category[];
   currentKm: number;
   targetKm: number;
+  workDaysPerMonth?: number;
   combustivelPrincipal?: string;
   maintenanceIntervals: MaintenanceInterval[];
   trialStartDate?: string;

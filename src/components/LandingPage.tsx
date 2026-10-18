@@ -358,7 +358,7 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
             <FeatureCard 
               icon={<Settings className="text-slate-600" />}
               title="Gestão de Revisão"
-              description="Alertas automáticos de troca de óleo, pneus e correias baseados na sua kilometragem."
+              description="Alertas automáticos de troca de óleo, pneus e correias baseados na sua quilometragem."
             />
             <FeatureCard 
               icon={<BarChart3 className="text-indigo-600" />}
