@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, ReactNode, useCallback, Component, ErrorInfo } from 'react';
+import { useState, useEffect, useMemo, useRef, ReactNode, useCallback, Component, ErrorInfo } from 'react';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -84,6 +84,7 @@ import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 import ManualModal from './components/ManualModal';
 import SystemMaintenanceView from './components/SystemMaintenanceView';
+import { DEMO_USER, buildDemoState } from './lib/demoData';
 import { checkAndNotifyDailyGoal, checkAndNotifyMaintenance } from './services/notificationService';
 
 const APP_VERSION = '1.3.0';
@@ -91,6 +92,10 @@ const APP_VERSION = '1.3.0';
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isManualOpen, setIsManualOpen] = useState(false);
+  // Modo demonstração: dados fictícios só em memória (nada é lido/gravado no Firebase)
+  const [isDemo, setIsDemo] = useState(false);
+  const [demoShowBanner, setDemoShowBanner] = useState(true);
+  const isDemoRef = useRef(false);
   
   useEffect(() => {
     async function testConnection() {
@@ -233,7 +238,10 @@ export default function App() {
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       console.log("App Initialization: onAuthStateChanged triggered", { loggedIn: !!currentUser, uid: currentUser?.uid });
-      setUser(currentUser);
+      // Em modo demonstração, o usuário fictício não pode ser sobrescrito pelo Firebase Auth
+      if (!isDemoRef.current) {
+        setUser(currentUser);
+      }
       setIsAuthReady(true);
       if (currentUser) {
         console.log("Logged in user:", currentUser.email);
@@ -244,7 +252,7 @@ export default function App() {
 
   // Online/Offline Listener
   useEffect(() => {
-    if (isAuthReady && user) {
+    if (isAuthReady && user && !isDemo) {
       trackVisit({
         uid: user.uid,
         email: user.email,
@@ -261,11 +269,11 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [isAuthReady, user]);
+  }, [isAuthReady, user, isDemo]);
 
   // Firestore Sync
   useEffect(() => {
-    if (!user) return;
+    if (!user || isDemo) return;
 
     // Sync User Config
     console.log("App Initialization: Syncing User Config for", user.uid);
@@ -467,14 +475,33 @@ export default function App() {
       unsubEntries();
       unsubAppConfig();
     };
-  }, [user, isAuthReady]);
+  }, [user, isAuthReady, isDemo]);
 
   const [authError, setAuthError] = useState<string | null>(null);
 
   const isAdmin = useMemo(() => {
     if (!user?.email) return false;
     return user.email.toLowerCase().trim() === 'leandrosolon@gmail.com';
-  }, [user]);
+  }, [user, isDemo]);
+
+  // Inicia a demonstração com um usuário genérico e dados fictícios (somente em memória)
+  const startDemo = useCallback((showBanner = true) => {
+    const demo = buildDemoState();
+    isDemoRef.current = true;
+    setIsDemo(true);
+    setDemoShowBanner(showBanner);
+    setState(prev => ({ ...prev, ...demo }));
+    setUser(DEMO_USER);
+    setActiveTab('dashboard');
+  }, []);
+
+  // Atalhos de URL: ?demo=1 (com faixa "dados fictícios") e ?demo=limpo (sem a faixa, para gravar vídeo)
+  useEffect(() => {
+    const demoParam = new URLSearchParams(window.location.search).get('demo');
+    if (demoParam === '1' || demoParam === 'limpo') {
+      startDemo(demoParam !== 'limpo');
+    }
+  }, [startDemo]);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -512,6 +539,31 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    if (isDemoRef.current) {
+      // Sair da demonstração: volta para a landing page e descarta os dados fictícios
+      isDemoRef.current = false;
+      setIsDemo(false);
+      setUser(null);
+      setActiveTab('dashboard');
+      setState(prev => ({
+        ...prev,
+        entries: [],
+        fixedCosts: DEFAULT_FIXED_COSTS,
+        categories: DEFAULT_CATEGORIES,
+        earningCategories: DEFAULT_EARNING_CATEGORIES,
+        refundCategories: DEFAULT_REFUND_CATEGORIES,
+        currentKm: 0,
+        targetKm: 0,
+        workDaysPerMonth: 22,
+        combustivelPrincipal: undefined,
+        maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,
+        trialStartDate: undefined,
+        hasSeenTutorial: false,
+        tutorialOptOut: false
+      }));
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
     try {
       // Clear state immediately for UI responsiveness
       setUser(null);
@@ -763,6 +815,28 @@ export default function App() {
 
   const handleAddEntry = async (entryData: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => {
     if (!user) return;
+
+    if (isDemo) {
+      const list = Array.isArray(entryData) ? entryData : [entryData];
+      setState(prev => {
+        let entries = [...prev.entries];
+        let latestKm = 0;
+        list.forEach(item => {
+          const cleaned = cleanObject(item);
+          if (editingEntry && !Array.isArray(entryData)) {
+            entries = entries.map(x => x.id === editingEntry.id ? ({ ...cleaned, id: editingEntry.id } as Entry) : x);
+          } else {
+            entries.push({ ...cleaned, id: `demo-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` } as Entry);
+          }
+          if (item.km && item.km > latestKm) latestKm = item.km;
+        });
+        entries.sort((a, b) => getEntryDateTimeSortKey(b).localeCompare(getEntryDateTimeSortKey(a)));
+        return { ...prev, entries, currentKm: latestKm > (prev.currentKm || 0) ? latestKm : prev.currentKm };
+      });
+      setEditingEntry(null);
+      setIsEntryModalOpen(false);
+      return;
+    }
     
     const entriesToAdd = Array.isArray(entryData) ? entryData : [entryData];
     const batch = writeBatch(db);
@@ -813,6 +887,10 @@ export default function App() {
 
   const handleDeleteEntry = async (id: string) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, entries: prev.entries.filter(e => e.id !== id) }));
+      return;
+    }
     try {
       const entryRef = doc(db, 'users', user.uid, 'entries', id);
       await deleteDoc(entryRef);
@@ -823,37 +901,62 @@ export default function App() {
 
   const handleUpdateFixedCosts = useCallback(async (costs: FixedCost[]) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, fixedCosts: costs }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ fixedCosts: costs }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateEarningCategories = useCallback(async (categories: Category[]) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, earningCategories: categories }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ earningCategories: categories }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateRefundCategories = useCallback(async (categories: Category[]) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, refundCategories: categories }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ refundCategories: categories }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateEntries = useCallback(async (entries: Entry[]) => {
     // This is used for clear all or bulk import
     if (!user) return;
+    if (isDemo) {
+      setState(prev => {
+        if (entries.length === 0) return { ...prev, entries: [] };
+        const byId = new Map(prev.entries.map(e => [e.id, e] as [string, Entry]));
+        entries.forEach((e, i) => {
+          const id = e.id || `demo-import-${Date.now()}-${i}`;
+          byId.set(id, { ...e, id });
+        });
+        const merged = Array.from(byId.values()).sort((a, b) => getEntryDateTimeSortKey(b).localeCompare(getEntryDateTimeSortKey(a)));
+        return { ...prev, entries: merged };
+      });
+      return;
+    }
     try {
       const entriesRef = collection(db, 'users', user.uid, 'entries');
       
@@ -886,80 +989,100 @@ export default function App() {
       console.error('Bulk update error:', error);
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/entries (bulk)`);
     }
-  }, [user, state.entries]);
+  }, [user, isDemo, state.entries]);
 
   const handleUpdateCategories = useCallback(async (categories: Category[]) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, categories: categories }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ categories: categories }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateAppSheetMapping = useCallback(async (mapping: AppSheetMapping) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, appSheetMapping: mapping }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ appSheetMapping: mapping }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateTargetKm = useCallback(async (km: number) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, targetKm: km }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ targetKm: km }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateCurrentKm = useCallback(async (km: number) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, currentKm: km }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ currentKm: km }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateMaintenanceIntervals = useCallback(async (intervals: MaintenanceInterval[]) => {
     if (!user) return;
+    if (isDemo) {
+      setState(prev => ({ ...prev, maintenanceIntervals: intervals }));
+      return;
+    }
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ maintenanceIntervals: intervals }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateCombustivelPrincipal = useCallback(async (fuel: string) => {
     setState(prev => ({ ...prev, combustivelPrincipal: fuel }));
-    if (!user) return;
+    if (!user || isDemo) return;
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ combustivelPrincipal: fuel }), { merge: true });
     } catch (error) {
       console.warn('Erro ao atualizar combustível principal:', error);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateWorkDaysPerMonth = useCallback(async (days: number) => {
     const safeDays = Math.min(31, Math.max(1, Math.round(days || 22)));
     setState(prev => ({ ...prev, workDaysPerMonth: safeDays }));
-    if (!user) return;
+    if (!user || isDemo) return;
     try {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, cleanObject({ workDaysPerMonth: safeDays }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleUpdateAppConfig = useCallback(async (config: any) => {
     if (!isAdmin) return;
@@ -972,7 +1095,7 @@ export default function App() {
   }, [isAdmin]);
 
   const handleCloseTutorial = useCallback(async (dontShowAgain: boolean) => {
-    if (!user) return;
+    if (!user || isDemo) return;
     setDismissedTutorialSession(true);
     try {
       if (dontShowAgain) {
@@ -984,10 +1107,10 @@ export default function App() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
-  }, [user]);
+  }, [user, isDemo]);
 
   const handleStartWithExamples = useCallback(async () => {
-    if (!user) return;
+    if (!user || isDemo) return;
     try {
       const entriesRef = collection(db, 'users', user.uid, 'entries');
       const batch = writeBatch(db);
@@ -1034,7 +1157,7 @@ export default function App() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/entries`);
     }
-  }, [user, handleCloseTutorial]);
+  }, [user, isDemo, handleCloseTutorial]);
 
   const isTrialExpired = useMemo(() => {
     // Admin bypass
@@ -1067,7 +1190,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LandingPage onLogin={handleLogin} error={authError} />;
+    return <LandingPage onLogin={handleLogin} onDemo={() => startDemo(true)} error={authError} />;
   }
 
   if (isTrialExpired) {
@@ -1093,6 +1216,13 @@ export default function App() {
         </div>
       )}
       
+      {/* Faixa do modo demonstração */}
+      {isDemo && demoShowBanner && (
+        <div className="bg-amber-400 text-amber-950 text-[10px] font-black py-1 px-4 text-center z-[100] uppercase tracking-wider">
+          Modo demonstração — dados fictícios, nada é salvo
+        </div>
+      )}
+
       {/* Offline Indicator */}
       <AnimatePresence>
         {!isOnline && (
@@ -1155,7 +1285,7 @@ export default function App() {
               <button 
                 onClick={handleLogout}
                 className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
-                title="Sair"
+                title={isDemo ? "Sair da demonstração" : "Sair"}
               >
                 <LogOut size={18} />
               </button>
@@ -1399,7 +1529,7 @@ export default function App() {
           <AIVideoStudio key="ai-video-studio" onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
         <ManualModal key="manual-modal" isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
-        <PWAPrompt key="pwa-prompt" />
+        {!isDemo && <PWAPrompt key="pwa-prompt" />}
         {isEntryModalOpen && (
           <div key="entry-modal-container" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
