@@ -1205,7 +1205,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className={cn(
-        "min-h-screen bg-[#0047AB] text-white font-sans pb-20 selection:bg-blue-400 selection:text-white",
+        "min-h-screen bg-[#0047AB] text-white font-sans pb-28 sm:pb-24 overflow-x-hidden selection:bg-blue-400 selection:text-white",
         isBeta && "beta-mode"
       )}>
       {/* Beta/Staging Banner */}
@@ -1239,30 +1239,30 @@ export default function App() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#0047AB]/80 backdrop-blur-md text-white p-4 sticky top-0 z-30 border-b border-white/10">
-        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-white p-1.5 rounded-lg shadow-lg shadow-blue-900/20">
-              <Car className="text-[#0047AB] size-6" />
+      <header className="bg-[#0047AB]/80 backdrop-blur-md text-white px-3 py-3 sm:p-4 sticky top-0 z-30 border-b border-white/10">
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="bg-white p-1.5 rounded-lg shadow-lg shadow-blue-900/20 shrink-0">
+              <Car className="text-[#0047AB] size-5 sm:size-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="font-bold text-lg tracking-tight leading-none">LucroNoVolante</h1>
-                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white tracking-wide">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <h1 className="font-bold text-sm sm:text-lg tracking-tight leading-none truncate">LucroNoVolante</h1>
+                <span className="shrink-0 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white tracking-wide">
                   v{APP_VERSION}
                 </span>
               </div>
               {user.displayName && (
-                <p className="text-[10px] opacity-80 font-medium mt-0.5">Olá, {user.displayName.split(' ')[0]}</p>
+                <p className="text-[10px] opacity-80 font-medium mt-0.5 truncate">Olá, {user.displayName.split(' ')[0]}</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-[10px] opacity-80 uppercase font-semibold">Resultado do mês</p>
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="text-right leading-tight">
+              <p className="text-[9px] sm:text-[10px] opacity-80 uppercase font-semibold whitespace-nowrap">Resultado do mês</p>
               <p 
                 className={cn(
-                  "font-bold text-sm",
+                  "font-bold text-xs sm:text-sm whitespace-nowrap",
                   totals.balance >= 0 ? "text-emerald-400" : "text-rose-400",
                   "cursor-help"
                 )}
@@ -1274,20 +1274,22 @@ export default function App() {
                 ganhos − despesas − todos os custos fixos
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button 
                 onClick={() => setIsManualOpen(true)}
-                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                className="p-1.5 sm:p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                 title="Guia de Uso"
+                aria-label="Guia de Uso"
               >
-                <HelpCircle size={18} />
+                <HelpCircle className="size-4 sm:size-[18px]" />
               </button>
               <button 
                 onClick={handleLogout}
-                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                className="p-1.5 sm:p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                 title={isDemo ? "Sair da demonstração" : "Sair"}
+                aria-label={isDemo ? "Sair da demonstração" : "Sair"}
               >
-                <LogOut size={18} />
+                <LogOut className="size-4 sm:size-[18px]" />
               </button>
             </div>
           </div>
@@ -1466,14 +1468,16 @@ export default function App() {
           setEditingEntry(null);
           setIsEntryModalOpen(true);
         }}
-        className="fixed bottom-24 right-6 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-colors z-40"
+        className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 bg-blue-600 text-white p-3.5 sm:p-4 rounded-full shadow-2xl hover:bg-blue-700 active:scale-95 transition-all z-40 focus:outline-none focus:ring-4 focus:ring-blue-300"
+        title="Novo Lançamento"
+        aria-label="Novo Lançamento"
       >
-        <PlusCircle className="size-8" />
+        <PlusCircle className="size-7 sm:size-8" />
       </button>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-2 z-30">
-        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex justify-around items-center">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex items-center justify-between px-1 sm:px-3">
           <NavButton 
             active={activeTab === 'dashboard'} 
             onClick={() => setActiveTab('dashboard')} 
@@ -1513,7 +1517,6 @@ export default function App() {
             label="Custos" 
           />
         </div>
-        <div className="text-[8px] text-slate-300 text-center mt-1 font-bold">v{APP_VERSION}</div>
       </nav>
 
       {/* Entry Modal */}
@@ -1589,21 +1592,26 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
     <button 
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center gap-1 p-2 transition-all duration-200",
-        active ? "text-blue-600 scale-110" : "text-slate-500 hover:text-slate-700"
+        "flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-0.5 sm:px-1 rounded-xl transition-colors duration-150 relative select-none",
+        active ? "text-blue-600" : "text-slate-500 hover:text-slate-700 active:text-blue-600"
       )}
     >
       <div className={cn(
-        "p-1 rounded-xl transition-colors",
-        active ? "bg-blue-50" : "bg-transparent"
+        "p-1 rounded-lg transition-colors flex items-center justify-center [&>svg]:size-5 sm:[&>svg]:size-5.5 [&>svg]:shrink-0",
+        active ? "bg-blue-50 text-blue-600" : "bg-transparent text-slate-500"
       )}>
         {icon}
       </div>
-      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      <span className={cn(
+        "text-[9px] sm:text-[10px] uppercase tracking-tighter sm:tracking-tight truncate w-full text-center mt-0.5 leading-tight px-0.5",
+        active ? "text-blue-600 font-extrabold" : "text-slate-500 font-semibold"
+      )}>
+        {label}
+      </span>
       {active && (
         <motion.div 
           layoutId="nav-indicator"
-          className="w-1 h-1 bg-blue-600 rounded-full mt-0.5"
+          className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-0.5"
         />
       )}
     </button>

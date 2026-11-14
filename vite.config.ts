@@ -14,7 +14,7 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         workbox: {
-          maximumFileSizeToCacheInBytes: 5000000, // Increase limit to 5MB
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // Increase limit to 10MB
           importScripts: ['/sw-custom.js'],
           navigateFallbackDenylist: [
             /^\/api\//,
