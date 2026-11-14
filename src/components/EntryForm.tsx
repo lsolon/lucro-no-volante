@@ -43,6 +43,7 @@ import { GAS_STATIONS } from '../constants';
 import { extractInvoiceDataFromImage, extractInvoiceDataFromText } from '../services/geminiService';
 import { calculateEmptyTankCycle, calculateCumulativeEmptyTankCycle } from '../lib/fuel-calculator';
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
+import { authFetch } from '../lib/api';
 
 interface EntryFormProps {
   onSubmit: (entry: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => void;
@@ -368,16 +369,16 @@ export default function EntryForm({
   const handleExtractFromUrl = async (url: string) => {
     if (!url) return;
     if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
-      alert('Esta funcionalidade está disponível apenas para o administrador.');
+      setFormError('Esta funcionalidade está disponível apenas para o administrador.');
       return;
     }
     setIsExtracting(true);
     try {
-      // Use local API proxy to avoid CORS and Firebase Function dependency
+      // Use local API proxy with authFetch
       const apiUrl = `/api/fetch-url?url=${encodeURIComponent(url)}`;
       console.log('Attempting to fetch invoice from:', apiUrl);
       
-      const response = await fetch(apiUrl);
+      const response = await authFetch(apiUrl);
       if (!response.ok) {
         let errorMsg = `Erro de Servidor (${response.status})`;
         try {

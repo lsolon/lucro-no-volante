@@ -108,6 +108,176 @@ export interface AICampaign {
   createdAt: string;
 }
 
+export type PrivateRideStatus = 
+  | 'orcamento_enviado'
+  | 'aguardando_sinal'
+  | 'confirmada'
+  | 'em_andamento'
+  | 'concluida'
+  | 'expirada'
+  | 'cancelada';
+
+export interface PrivateRidesSettings {
+  pixKeyType: 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria';
+  pixKey: string;
+  pixReceiverName: string;
+  pixReceiverCity?: string;
+  depositPercent: number; // default 50
+  budgetValidityHours: number; // default 2
+  bookingBufferMinutes: number; // default 15
+  minimumFare: number; // default 25
+  defaultHourlyRate: number; // default 30
+  cancellationRefundHours: number; // default 24
+  whatsappMessageTemplate?: string;
+  carModel?: string;
+  carColor?: string;
+  carPlate?: string;
+}
+
+export interface PrivateRide {
+  id: string;
+  token: string; // Token público aleatório e não adivinhável para /r/{token}
+  driverUid: string;
+  driverName: string;
+  driverPhone?: string;
+  driverCar?: {
+    model: string;
+    color: string;
+    plate: string;
+  };
+  passengerName: string;
+  passengerPhone: string;
+  origin: string;
+  originPlaceId?: string;
+  destination: string;
+  destinationPlaceId?: string;
+  scheduledDate: string; // YYYY-MM-DD
+  scheduledTime: string; // HH:mm
+  notes?: string;
+
+  // Distâncias e Tempos
+  displacementKm: number; // Deslocamento até o cliente
+  displacementMinutes: number; // Tempo até o cliente
+  tripKm: number; // Viagem
+  tripMinutes: number; // Tempo da viagem
+  returnEmpty: boolean; // Volto vazio? (default true)
+  returnKm: number; // Km de retorno
+  returnMinutes: number; // Tempo de retorno
+  totalKm: number;
+  totalCommittedMinutes: number; // Reserva (deslocamento + folga) + viagem + retorno (se vazio)
+  bufferMinutes: number; // Folga (padrão 15 min)
+  offlineTime: string; // Horário para ficar offline (HH:mm)
+
+  // Custos e Detalhamento (Apenas visão do motorista)
+  costPerKm: number;
+  costPerKmSource: 'auto' | 'manual';
+  hourlyRate: number;
+  hourlyRateSource: 'history' | 'default' | 'manual';
+  kmCostTotal: number;
+  opportunityCostTotal: number;
+  extras: {
+    toll: number;
+    parking: number;
+    other: number;
+  };
+  totalExtras: number;
+  rawCalculatedTotal: number;
+  minimumFareApplied: boolean;
+  finalTotalAmount: number; // Arredondado para múltiplos de R$ 5
+  estimatedNetProfit: number; // Lucro líquido do motorista
+
+  // Campos visíveis ao passageiro (REGRA 6)
+  tripPrice: number; // Valor da viagem
+  scheduleFee: number; // Taxa de reserva de horário ("Garante o motorista exclusivamente disponível para o seu horário")
+  depositPercent: number; // Padrão 50%
+  depositAmount: number;
+  remainingAmount: number;
+  paymentProvider: 'pix_manual';
+
+  // Chave Pix para o passageiro
+  pixKey: string;
+  pixKeyType: string;
+  pixReceiverName: string;
+  pixReceiverCity?: string;
+
+  // Status e Timestamps
+  status: PrivateRideStatus;
+  createdAt: string;
+  expiresAt: string; // ISO
+  acceptedTerms?: boolean;
+  acceptedTermsAt?: string;
+  depositPaidReported?: boolean;
+  depositPaidAt?: string;
+  depositConfirmedAt?: string;
+  tripStartedAt?: string;
+  tripFinishedAt?: string;
+  finalPaymentConfirmedAt?: string;
+
+  // Cancelamento
+  cancelledAt?: string;
+  cancelledBy?: 'passenger' | 'driver';
+  cancellationReason?: string;
+  refundEligible?: boolean;
+  refundAmount?: number;
+  refundDone?: boolean;
+  refundDoneAt?: string;
+
+  // Integração financeira
+  financialEntryId?: string;
+  retainedDepositEntryId?: string;
+}
+
+export interface PublicBookingData {
+  token: string;
+  bookingId: string;
+  driverUid: string;
+  driverName: string;
+  driverCar?: {
+    model: string;
+    color: string;
+    plate: string;
+  };
+  passengerName: string;
+  passengerPhone: string;
+  origin: string;
+  destination: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  notes?: string;
+
+  tripPrice: number;
+  scheduleFee: number;
+  totalAmount: number;
+  depositAmount: number;
+  remainingAmount: number;
+  depositPercent: number;
+
+  cancellationTermsText: string;
+
+  pixKey: string;
+  pixKeyType: string;
+  pixReceiverName: string;
+  pixReceiverCity?: string;
+
+  status: PrivateRideStatus;
+  createdAt: string;
+  expiresAt: string;
+
+  acceptedTerms?: boolean;
+  acceptedTermsAt?: string;
+  depositPaidReported?: boolean;
+  depositPaidAt?: string;
+  depositConfirmedAt?: string;
+
+  cancellationRequested?: boolean;
+  cancellationRequestedAt?: string;
+  cancellationReason?: string;
+  refundEligible?: boolean;
+  refundAmount?: number;
+
+  updatedAt?: string;
+}
+
 export interface AppState {
   entries: Entry[];
   fixedCosts: FixedCost[];
@@ -131,4 +301,7 @@ export interface AppState {
   lastSeen?: string;
   appConfig?: AppConfig;
   isConfigLoaded?: boolean;
+  privateRides?: PrivateRide[];
+  privateRidesSettings?: PrivateRidesSettings;
 }
+

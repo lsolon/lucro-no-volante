@@ -28,6 +28,7 @@ export const DEFAULT_FIXED_COSTS: FixedCost[] = [];
 export const DEFAULT_EARNING_CATEGORIES: Category[] = [
   { id: 'uber', nome: 'Uber' },
   { id: '99', nome: '99' },
+  { id: 'particular', nome: 'Particular' },
   { id: 'outros', nome: 'Outros' },
 ];
 
@@ -45,3 +46,20 @@ export const GAS_STATIONS = [
   'RodOil',
   'Outros'
 ];
+
+export const DEFAULT_PRIVATE_RIDES_SETTINGS = {
+  pixKeyType: 'cpf' as const,
+  pixKey: '',
+  pixReceiverName: '',
+  pixReceiverCity: 'BRASIL',
+  depositPercent: 50,
+  budgetValidityHours: 2,
+  bookingBufferMinutes: 15,
+  minimumFare: 25,
+  defaultHourlyRate: 30,
+  cancellationRefundHours: 24,
+  whatsappMessageTemplate: 'Olá, {nome}! Segue o link com as informações da sua viagem agendada: {link}. Aguardo a confirmação!',
+  carModel: '',
+  carColor: '',
+  carPlate: ''
+};

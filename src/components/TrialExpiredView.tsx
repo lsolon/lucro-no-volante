@@ -19,8 +19,11 @@ export default function TrialExpiredView({ onLogout, entries, categories, earnin
   const [isDeleting, setIsDeleting] = useState(false);
   const [downloadBackup, setDownloadBackup] = useState(true);
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const handleDeleteData = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -92,7 +95,7 @@ export default function TrialExpiredView({ onLogout, entries, categories, earnin
       
     } catch (error) {
       console.error('Error deleting data:', error);
-      alert('Houve um erro ao tentar excluir os dados. Verifique a conexão e tente novamente.');
+      setDeleteError('Houve um erro ao tentar excluir os dados. Verifique a conexão e tente novamente.');
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -124,7 +127,7 @@ export default function TrialExpiredView({ onLogout, entries, categories, earnin
           />
           
           <button 
-            onClick={() => window.open('https://wa.me/5511999999999?text=Tenho+uma+duvida+sobre+o+app', '_blank')}
+            onClick={() => window.open('https://wa.me/5521972682614?text=Tenho+uma+duvida+sobre+o+app', '_blank')}
             className="w-full bg-emerald-50 text-emerald-700 p-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-emerald-100 transition-all"
           >
             <MessageCircle size={20} />

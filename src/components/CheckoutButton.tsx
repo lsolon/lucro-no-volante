@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { CreditCard, Loader2 } from 'lucide-react';
+import { authFetch } from '../lib/api';
 
 interface CheckoutButtonProps {
-  title: string;
-  price: number;
+  title?: string;
+  price?: number;
   quantity?: number;
   className?: string;
   label?: string;
@@ -18,16 +19,12 @@ export function CheckoutButton({ title, price, quantity = 1, className = '', lab
     setError(null);
 
     try {
-      const response = await fetch('/api/create_preference', {
+      const response = await authFetch('/api/create_preference', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          price,
-          quantity,
-        }),
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();

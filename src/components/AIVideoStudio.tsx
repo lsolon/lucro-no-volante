@@ -23,6 +23,7 @@ import {
 import { cn, cleanObject, truncateLargeFields } from '../lib/utils';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { authFetch } from '../lib/api';
 import { doc, writeBatch, collection, addDoc } from 'firebase/firestore';
 import { AICampaign } from '../types';
 
@@ -151,7 +152,7 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      const response = await fetch('/api/gemini', {
+      const response = await authFetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

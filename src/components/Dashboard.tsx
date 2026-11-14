@@ -21,7 +21,7 @@ import {
   Layers
 } from 'lucide-react';
 import { cn, parseEntryDate, formatNumberBR, formatDateBR } from '../lib/utils';
-import { Entry, FixedCost, MaintenanceInterval } from '../types';
+import { Entry, FixedCost, MaintenanceInterval, PrivateRide } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { getAllEmptyTankCycles, getEmptyTankDualView } from '../lib/fuel-calculator';
 import PWAInstallButton from './PWAInstallButton';
@@ -58,6 +58,8 @@ interface DashboardProps {
   isAdmin?: boolean;
   uniqueVisitors?: number;
   email?: string;
+  privateRides?: PrivateRide[];
+  onViewAgenda?: () => void;
 }
 
 export default function Dashboard({ 
@@ -278,6 +280,8 @@ export default function Dashboard({
 
   const maintenanceStatus = useMemo(() => {
     return maintenanceIntervals.map(interval => {
+      const hasInterval = Boolean(interval.intervaloKm && interval.intervaloKm > 0);
+
       // Find the last entry for this maintenance item
       const lastEntry = entries.find(e => {
         const cat = categories.find(c => c.id === e.categoriaId);
@@ -292,25 +296,31 @@ export default function Dashboard({
         return name.includes(itemName) && e.km;
       });
 
-      if (!lastEntry || !lastEntry.km) return { ...interval, remaining: null, percent: 0 };
+      if (!hasInterval) {
+        return { ...interval, remaining: null, percent: 0, lastKm: lastEntry?.km || null, noInterval: true };
+      }
+
+      if (!lastEntry || !lastEntry.km) return { ...interval, remaining: null, percent: 0, lastKm: null, noInterval: false };
 
       const nextChange = lastEntry.km + interval.intervaloKm;
       const remaining = nextChange - currentKm;
       const percent = Math.max(0, Math.min(100, (remaining / interval.intervaloKm) * 100));
       
-      return { ...interval, remaining, percent, lastKm: lastEntry.km };
+      return { ...interval, remaining, percent, lastKm: lastEntry.km, noInterval: false };
     });
   }, [maintenanceIntervals, entries, categories, currentKm]);
 
   const maintenanceSummary = useMemo(() => {
-    const critical = maintenanceStatus.filter(item => item.remaining !== null && item.remaining < 500).length;
-    const warning = maintenanceStatus.filter(item => item.remaining !== null && item.remaining >= 500 && item.remaining < 1500).length;
+    const critical = maintenanceStatus.filter(item => !item.noInterval && item.remaining !== null && item.remaining < 500).length;
+    const warning = maintenanceStatus.filter(item => item.noInterval || (item.remaining !== null && item.remaining >= 500 && item.remaining < 1500)).length;
     return { critical, warning };
   }, [maintenanceStatus]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
+
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const handleShare = async () => {
     const shareData = {
@@ -324,7 +334,8 @@ export default function Dashboard({
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.origin);
-        alert('Link copiado para a área de transferência!');
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
       }
     } catch (err) {
       console.error('Erro ao compartilhar:', err);
@@ -359,7 +370,7 @@ export default function Dashboard({
           className="py-4 bg-white text-[#0047AB] rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/20 active:scale-95 transition-all cursor-pointer"
         >
           <Share2 size={18} className="text-blue-600" />
-          Indicar App
+          {copiedLink ? 'Link copiado!' : 'Indicar App'}
         </button>
         {isAdmin && (
           <button 
@@ -708,7 +719,7 @@ export default function Dashboard({
         <div className="mt-6 space-y-2">
           <div className="flex justify-between text-xs font-bold text-blue-200 uppercase tracking-wider">
             <span>Progresso da Quitação</span>
-            <span>{formatCurrency(totals.earnings)} / {formatCurrency(totals.totalFixedCosts + totals.dailyExpenses)} ({totals.progress.toFixed(1)}%)</span>
+            <span>{formatCurrency(totals.earnings)} / {formatCurrency(totals.totalFixedCosts + totals.dailyExpenses)} ({totals.progress.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%)</span>
           </div>
           <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
             <motion.div 

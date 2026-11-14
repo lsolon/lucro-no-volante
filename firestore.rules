@@ -25,6 +25,22 @@
 //   - obs: string (optional)
 //   - ganhos: map (optional) - { platformId: value }
 //
+// Collection: subscriptions
+// Document ID: {uid}
+// Fields:
+//   - status: string ('active')
+//   - paymentId: string
+//   - amount: number
+//   - paidAt: timestamp
+//   - expiresAt: timestamp
+//   - email: string
+//
+// Collection: trials
+// Document ID: {email}
+// Fields:
+//   - trialStartDate: string
+//   - trialEndsAt: timestamp (gravado pelo servidor)
+//
 // ===============================================================
 
 rules_version = '2';
@@ -44,16 +60,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        ("email" in request.auth.token && (
-          request.auth.token.email == "leandrosolon@gmail.com" ||
-          request.auth.token.email == "Leandrosolon@gmail.com" ||
-          request.auth.token.email == "LEANDROSOLON@GMAIL.COM" ||
-          request.auth.token.email.lower() == "leandrosolon@gmail.com"
-        )) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin')
-      );
+      return isAuthenticated() &&
+        request.auth.token.email_verified == true &&
+        ("email" in request.auth.token) &&
+        request.auth.token.email.lower() == "leandrosolon@gmail.com";
     }
     
     function hasOnlyAllowedFields(fields) {
@@ -91,22 +101,33 @@ service cloud.firestore {
     // ===============================================================
 
     match /trials/{email} {
-      allow read, create: if isAuthenticated() && 
+      allow read: if isAuthenticated() && 
         ("email" in request.auth.token) && 
         request.auth.token.email.lower() == email.lower();
 
-      allow update: if isAuthenticated() && 
+      allow create: if isAuthenticated() && 
         ("email" in request.auth.token) && 
         request.auth.token.email.lower() == email.lower() && 
-        request.resource.data.trialStartDate <= resource.data.trialStartDate;
+        request.resource.data.get('trialStartDate', '') is string &&
+        !('trialEndsAt' in request.resource.data);
         
       allow update, delete: if isAdmin();
+    }
+
+    match /subscriptions/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if false;
     }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow write: if isAdmin();
-      allow create, update: if isOwner(userId) && isValidUserConfig(request.resource.data);
+      allow create: if isOwner(userId) && 
+                      isValidUserConfig(request.resource.data) &&
+                      !request.resource.data.keys().hasAny(['role', 'isPaid', 'subscription', 'trialEndsAt']);
+      allow update: if isOwner(userId) && 
+                      isValidUserConfig(request.resource.data) &&
+                      !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isPaid', 'subscription', 'trialEndsAt']);
       allow delete: if isOwner(userId);
       
       match /entries {
@@ -124,6 +145,22 @@ service cloud.firestore {
           allow read, write: if isOwner(userId);
         }
       }
+
+      match /privateRides/{rideId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /public_bookings/{token} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (request.auth.uid == request.resource.data.driverUid || isAdmin());
+      allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                          'acceptedTerms', 'acceptedTermsAt',
+                          'depositPaidReported', 'depositPaidAt',
+                          'cancellationRequested', 'cancellationRequestedAt', 'cancellationReason',
+                          'updatedAt'
+                        ])) || (isAuthenticated() && (request.auth.uid == resource.data.driverUid || isAdmin()));
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.driverUid || isAdmin());
     }
 
     match /stats/global {
