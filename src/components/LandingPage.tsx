@@ -23,10 +23,11 @@ import { PolicyModal } from './PolicyModal';
 
 interface LandingPageProps {
   onLogin: () => void;
+  onDemo?: () => void;
   error?: string | null;
 }
 
-export default function LandingPage({ onLogin, error }: LandingPageProps) {
+export default function LandingPage({ onLogin, onDemo, error }: LandingPageProps) {
   const [scrolled, setScrolled] = useState(false);
   const [showTaxExample, setShowTaxExample] = useState(false);
   const [modalType, setModalType] = useState<'terms' | 'privacy' | null>(null);
@@ -122,6 +123,16 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
                 </button>
               </div>
             </div>
+
+            {onDemo && (
+              <button
+                onClick={onDemo}
+                className="mt-4 inline-flex items-center gap-2 text-sm font-black text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 px-5 py-2.5 rounded-2xl transition-all active:scale-95"
+              >
+                <Smartphone size={16} />
+                Ver demonstração (sem cadastro)
+              </button>
+            )}
 
             {error && (
               <motion.div 
